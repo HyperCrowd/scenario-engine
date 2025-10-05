@@ -187,12 +187,6 @@ var Scenario = class {
     };
   }
   /**
-   * Registers an Event to the scenario.
-   */
-  add(event) {
-    this.events.push(event);
-  }
-  /**
    * Gets a random Outcome from a Scenario Event
    */
   getRandomOutcome(scenarioEvent, outcomes = scenarioEvent.outcomes) {
@@ -284,6 +278,44 @@ var Scenario = class {
       entry: entry.name,
       tags: new Map(accumulatedTags)
     };
+  }
+  /**
+   * 
+   */
+  getEvent(tableName, entryName) {
+    return this.events.find((e) => e.tableName === tableName && e.entryName === entryName);
+  }
+  /**
+   * 
+   */
+  mergeOutcomes(event, outcomes, addIfMissing = true) {
+    for (const outcome of event.outcomes) {
+      const existingOutcome = outcomes.find((o) => outcome.tableName === o.tableName && outcome.likelihood === o.likelihood);
+      if (existingOutcome) {
+        for (const threshold of outcome.tagThresholds) {
+          existingOutcome.tagThresholds.forEach((t) => {
+            if (t.name === threshold.name) {
+              t.minValue += threshold.minValue;
+            }
+          });
+        }
+      } else {
+        if (addIfMissing) {
+          outcomes.push(outcome);
+        }
+      }
+    }
+  }
+  /**
+   * Registers an Event to the scenario.
+   */
+  add(event) {
+    const existingEvent = this.getEvent(event.tableName, event.entryName);
+    if (existingEvent !== void 0) {
+      this.mergeOutcomes(event, existingEvent.outcomes);
+    } else {
+      this.events.push(event);
+    }
   }
   /**
    * Starts running the scenario from the first registered event.

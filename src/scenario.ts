@@ -202,10 +202,51 @@ export default class Scenario {
   }
 
   /**
+   * 
+   */
+  getEvent(tableName: string, entryName: string) {
+    return this.events.find(e => e.tableName === tableName && e.entryName === entryName)
+  }
+
+  /**
+   * 
+   */
+  mergeOutcomes (event: ScenarioEvent, outcomes: Outcome[], addIfMissing = true) {
+    for (const outcome of event.outcomes) {
+      const existingOutcome = outcomes.find(o => outcome.tableName === o.tableName && outcome.likelihood === o.likelihood)
+
+      if (existingOutcome) {
+        // The outcome within the event already exists
+        for (const threshold of outcome.tagThresholds) {
+          existingOutcome.tagThresholds.forEach(t => {
+            if(t.name === threshold.name) {
+              // Add thresholds
+              t.minValue += threshold.minValue
+            }
+          })
+        }
+      } else {
+        // The outcome does not exist, add it
+        if (addIfMissing) {
+          outcomes.push(outcome)
+        }
+      }
+    }
+  }
+
+  /**
    * Registers an Event to the scenario.
    */
   add(event: ScenarioEvent) {
-    this.events.push(event)
+    const existingEvent = this.getEvent(event.tableName, event.entryName)
+
+    if (existingEvent !== undefined) {
+      // The event already exists
+      this.mergeOutcomes(event, existingEvent.outcomes)
+    } else {
+      // The event does not exist, add it
+      this.events.push(event)
+    }
   }
 
 
