@@ -70,13 +70,6 @@ export default class Scenario {
   }
 
   /**
-   * Registers an Event to the scenario.
-   */
-  add(event: ScenarioEvent) {
-    this.events.push(event)
-  }
-
-  /**
    * Gets a random Outcome from a Scenario Event
    */
   private getRandomOutcome(scenarioEvent: ScenarioEvent, outcomes: Outcome[] = scenarioEvent.outcomes): Outcome | false  {
@@ -133,7 +126,7 @@ export default class Scenario {
   /**
    * Gets the next outcome of a Scenario Event
    */
-  getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Tags}): Outcome | undefined {
+  private getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Tags}): Outcome | undefined {
     let outcome: Outcome | undefined
 
     if (criteria !== undefined) {
@@ -196,7 +189,7 @@ export default class Scenario {
    * @param currentEvent 
    * @param accumulatedTags 
    */
-  getPathEvent (tableName: string, accumulatedTags: Map<string, number>) {
+  private getPathEvent (tableName: string, accumulatedTags: Map<string, number>) {
     const table = this.getTable(tableName)
     const { roll, entry } = this.getEntry(table, accumulatedTags)
 
@@ -209,10 +202,18 @@ export default class Scenario {
   }
 
   /**
+   * Registers an Event to the scenario.
+   */
+  add(event: ScenarioEvent) {
+    this.events.push(event)
+  }
+
+
+  /**
    * Starts running the scenario from the first registered event.
    * @returns Array of objects representing the path of entries chosen during scenario execution
    */
-  run(accumulatedTags: Tags = new Map<string, number>(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = [], ): { path: PathEvent[], tags: Tags } {
+  run(accumulatedTags: Tags = new Map<string, number>(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): { path: PathEvent[], tags: Tags } {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
