@@ -1,0 +1,19 @@
+{
+  "name": "scenario.engine",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --platform=browser --format=esm",
+    "test": "npx tsx tests/index.ts"
+  },
+  "author": "Patrick Ryan",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "esbuild": "^0.25.10",
+    "glob": "^11.0.3",
+    "tsx": "^4.20.6",
+    "uvu": "^0.5.6"
+  }
+}
