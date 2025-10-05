@@ -8,6 +8,7 @@ import TableManager from '../src/tableManager'
 import TableEntry from '../src/tableEntry'
 import Table from '../src/table'
 import Tag from '../src/tag'
+import SimpleSeededRNG from '../src/rng'
 
 const scenarioTests = suite('Scenarios')
 
@@ -15,12 +16,36 @@ scenarioTests.before.each(() => {
   TableManager.clearAll()
 })
 
+class MockRNG extends SimpleSeededRNG {
+  random: () => 0.5
+  randomInt: () => 0
+}
+
+/**
+ * 
+ */
+const getRng = (random: number | (() => number), randomInt: number | ((max: number) => number)) => {
+  class MockRNG extends SimpleSeededRNG {
+    random(): number {
+      return typeof random === 'function'
+        ? random()
+        : random
+    }
+
+    randomInt(min: number, max: number): number {
+      return typeof randomInt === 'function'
+        ? randomInt(max)
+        : randomInt
+    }
+  }
+
+  return new MockRNG()
+}
+
+
 // --- Test: Multiple tags accumulate correctly ---
 scenarioTests.only('accumulates multiple different tags across entries', async () => {
-  const scenario = new Scenario('MultiTagScenario', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('MultiTagScenario', getRng(0.5, 0))
 
   new Table('Table1', [new TableEntry(1, 1, 'Start', [
     new Tag('strength', 2),
@@ -70,10 +95,7 @@ scenarioTests('selects outcomes based on likelihood weights', async () => {
     new Table('PathB', [new TableEntry(1, 1, 'B', [])])
     new Table('PathC', [new TableEntry(1, 1, 'C', [])])
 
-    const scenario = new Scenario('LikelihoodTest', {
-      random: Math.random,
-      randomInt: () => 0
-    })
+    const scenario = new Scenario('LikelihoodTest', getRng(() => Math.random(), 0))
 
     scenario.register(new ScenarioEvent('Start', 'Choice', outcomes))
     const path = await scenario.create()
@@ -96,10 +118,7 @@ scenarioTests('tag threshold takes priority over likelihood', async () => {
   new Table('WeakPath', [new TableEntry(1, 1, 'Weak', [])])
   new Table('StrongPath', [new TableEntry(1, 1, 'Strong', [])])
 
-  const scenario = new Scenario('ThresholdPriority', {
-    random: () => 0.1, // Would normally pick first outcome
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('ThresholdPriority', getRng(0.1, 0))
 
   // High likelihood outcome without threshold
   // Low likelihood outcome WITH threshold that will be met
@@ -128,10 +147,7 @@ scenarioTests('outcome requires all tag thresholds to be met', async () => {
   new Table('Failure', [new TableEntry(1, 1, 'Defeat', [])])
 
   // Test when both thresholds ARE met
-  const scenario1 = new Scenario('BothMet', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario1 = new Scenario('BothMet', getRng(0.5, 0))
 
   const outcomes1 = [
     new Outcome(1, 'Success', [
@@ -156,10 +172,7 @@ scenarioTests('outcome requires all tag thresholds to be met', async () => {
   new Table('Success', [new TableEntry(1, 1, 'Victory', [])])
   new Table('Failure', [new TableEntry(1, 1, 'Defeat', [])])
 
-  const scenario2 = new Scenario('OneMissing', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario2 = new Scenario('OneMissing', getRng(0.5, 0))
 
   scenario2.register(new ScenarioEvent('Table1', 'Quest', outcomes1))
   const path2 = await scenario2.create()
@@ -175,10 +188,7 @@ scenarioTests('handles long chain of events', async () => {
     tables.push(new Table(`Table${i}`, [entry]))
   }
 
-  const scenario = new Scenario('LongChain', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('LongChain', getRng(0.5, 0))
 
   for (let i = 1; i < 10; i++) {
     scenario.register(
@@ -199,10 +209,7 @@ scenarioTests('terminates gracefully when no next event matches', async () => {
   new Table('Table1', [entry1])
   new Table('Table2', [entry2])
 
-  const scenario = new Scenario('NoMatchingEvent', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('NoMatchingEvent', getRng(0.5, 0))
 
   // Only register event for Table1, not Table2
   scenario.register(new ScenarioEvent('Table1', 'Start', [new Outcome(1, 'Table2')]))
@@ -221,10 +228,7 @@ scenarioTests('entries without tags do not modify accumulated tags', async () =>
   new Table('Table1', [entry1])
   new Table('Table2', [entry2])
 
-  const scenario = new Scenario('NoTagModification', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('NoTagModification', getRng(0.5, 0))
 
   scenario.register(new ScenarioEvent('Table1', 'Tagged', [new Outcome(1, 'Table2')]))
 
@@ -249,10 +253,7 @@ scenarioTests('zero likelihood outcome is never selected', async () => {
     new Table('Never', [new TableEntry(1, 1, 'ShouldNotReach', [])])
     new Table('Always', [new TableEntry(1, 1, 'ShouldReach', [])])
 
-    const scenario = new Scenario('ZeroLikelihood', {
-      random: Math.random,
-      randomInt: () => 0
-    })
+    const scenario = new Scenario('ZeroLikelihood', getRng(() => Math.random(), 0))
 
     scenario.register(
       new ScenarioEvent('Start', 'Choice', [
@@ -280,10 +281,7 @@ scenarioTests('complex scenario with multiple branching points', async () => {
   new Table('GoodEnding', [new TableEntry(1, 1, 'Victory', [])])
   new Table('BadEnding', [new TableEntry(1, 1, 'Defeat', [])])
 
-  const scenario = new Scenario('ComplexBranching', {
-    random: () => 0.5,
-    randomInt: () => 0
-  })
+  const scenario = new Scenario('ComplexBranching', getRng(0.5, 0))
 
   scenario.register(new ScenarioEvent('Start', 'Begin', [new Outcome(1, 'Choice1')]))
   scenario.register(new ScenarioEvent('Choice1', 'FirstChoice', [new Outcome(1, 'Choice2')]))
@@ -307,16 +305,10 @@ scenarioTests('different RNG seeds produce different paths', async () => {
   const entry2 = new TableEntry(51, 100, 'High', [])
   new Table('Start', [entry1, entry2])
 
-  const scenario1 = new Scenario('RNG1', {
-    random: () => 0.3,
-    randomInt: (max) => Math.floor(0.3 * max)
-  })
+  const scenario1 = new Scenario('RNG1', getRng(0.3, (max: number) => Math.floor(0.3 * max)))
   scenario1.register(new ScenarioEvent('Start', 'Low', []))
 
-  const scenario2 = new Scenario('RNG2', {
-    random: () => 0.8,
-    randomInt: (max) => Math.floor(0.8 * max)
-  })
+  const scenario2 = new Scenario('RNG2', getRng(0.8, (max: number) => Math.floor(0.8 * max)))
   scenario2.register(new ScenarioEvent('Start', 'High', []))
 
   const path1 = await scenario1.create()

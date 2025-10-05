@@ -3,19 +3,24 @@
  *
  * Lightweight deterministic RNG for browsers.
  * Based on Mulberry32: fast, good-quality random stream from a seed.
+ * If no seed is provided, uses crypto.getRandomValues for unseeded randomness.
  */
 export default class SimpleSeededRNG {
   private state: number
 
-  constructor(seed: number | string) {
-    // Convert string seeds to numeric hash
-    if (typeof seed === 'string') {
+  constructor(seed?: number | string) {
+    if (seed === undefined) {
+      // Use cryptographically secure randomness
+      const array = new Uint32Array(1)
+      crypto.getRandomValues(array)
+      this.state = array[0]
+    } else if (typeof seed === 'string') {
       let h = 1779033703 ^ seed.length
       for (let i = 0; i < seed.length; i++) {
         h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)
         h = (h << 13) | (h >>> 19)
       }
-      this.state = (h >>> 0)
+      this.state = h >>> 0
     } else {
       this.state = seed >>> 0
     }

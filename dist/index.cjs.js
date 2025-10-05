@@ -133,6 +133,35 @@ var Scenario = class {
     this.events.push(event);
   }
   /**
+   * 
+   */
+  getTable(tableName) {
+    const table = tableManager_default.getTable(tableName);
+    if (!table) {
+      throw new Error(`Table "${tableName}" not found.`);
+    }
+    return table;
+  }
+  /**
+   * 
+   */
+  getEntry(table, accumulatedTags) {
+    const roll = 62;
+    const entry = table.getEntry(roll);
+    if (!entry) {
+      throw new Error(`No entry found for roll ${roll} in table "${table.name}".`);
+    }
+    if (entry.tags && entry.tags.length > 0) {
+      for (const tag of entry.tags) {
+        accumulatedTags.set(tag.name, (accumulatedTags.get(tag.name) || 0) + tag.value);
+      }
+    }
+    return {
+      roll,
+      entry
+    };
+  }
+  /**
    * Starts running the scenario from the first registered event.
    * @returns Array of objects representing the path of entries chosen during scenario execution
    */
@@ -144,57 +173,58 @@ var Scenario = class {
     const accumulatedTags = /* @__PURE__ */ new Map();
     let currentEvent = this.events[0];
     while (currentEvent) {
-      const table = tableManager_default.getTable(currentEvent.tableName);
-      if (!table) {
-        console.warn(`Table "${currentEvent.tableName}" not found.`);
-        break;
-      }
-      const roll = this.rng.randomInt(table.getMaxValue()) + 1;
-      const entry = table.getEntry(roll);
-      if (!entry) {
-        console.warn(`No entry found for roll ${roll} in table "${table.name}".`);
-        break;
-      }
-      if (entry.tags && entry.tags.length > 0) {
-        for (const tag of entry.tags) {
-          accumulatedTags.set(tag.name, (accumulatedTags.get(tag.name) || 0) + tag.value);
-        }
-      }
+      const table = this.getTable(currentEvent.tableName);
+      const { roll, entry } = this.getEntry(table, accumulatedTags);
       path.push({
         tableName: table.name,
         entry,
+        roll,
         accumulatedTags: new Map(accumulatedTags)
       });
-      currentEvent = this.events.find(
-        (e) => e.tableName === table.name && e.entryName === entry.name
-      );
-      if (!currentEvent) {
-        break;
-      }
       let nextOutcome = currentEvent.outcomes.find((outcome) => {
-        if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) return false;
+        if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
+          return false;
+        }
         return outcome.tagThresholds.every(({ name, minValue }) => {
           return (accumulatedTags.get(name) || 0) >= minValue;
         });
       });
       if (nextOutcome) {
         currentEvent = this.events.find((e) => e.tableName === nextOutcome?.tableName);
-        if (!currentEvent) break;
+        if (!currentEvent) {
+          break;
+        }
         continue;
       }
       const cumulative = [];
       let sum = 0;
       for (const outcome of currentEvent.outcomes) {
-        if (outcome.tagThresholds && outcome.tagThresholds.length > 0) continue;
+        console.log({ currentEvent, outcome });
+        if (outcome.tagThresholds && outcome.tagThresholds.length > 0) {
+          continue;
+        }
         sum += outcome.likelihood;
         cumulative.push({ outcome, cumulativeLikelihood: sum });
       }
-      if (sum === 0) break;
+      if (sum === 0) {
+        break;
+      }
       const rand = this.rng.random() * sum;
       nextOutcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome;
-      if (!nextOutcome) break;
+      if (!nextOutcome) {
+        break;
+      }
       currentEvent = this.events.find((e) => e.tableName === nextOutcome.tableName);
-      if (!currentEvent) break;
+      if (!currentEvent) {
+        const table2 = this.getTable(nextOutcome.tableName);
+        const { roll: roll2, entry: entry2 } = this.getEntry(table2, accumulatedTags);
+        path.push({
+          tableName: table2.name,
+          entry: entry2,
+          roll: roll2,
+          accumulatedTags: new Map(accumulatedTags)
+        });
+      }
     }
     return path;
   }
@@ -308,7 +338,11 @@ var Tag = class {
 var SimpleSeededRNG = class {
   state;
   constructor(seed) {
-    if (typeof seed === "string") {
+    if (seed === void 0) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      this.state = array[0];
+    } else if (typeof seed === "string") {
       let h = 1779033703 ^ seed.length;
       for (let i = 0; i < seed.length; i++) {
         h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
