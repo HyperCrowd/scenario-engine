@@ -185,21 +185,27 @@ scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
 ]))
 
 const { path } = scenario.run()
+console.log(path)
 ```
 
-**Important**: Tag thresholds are checked **before** likelihood-based outcomes. If a threshold is met, that outcome triggers regardless of probability weights.
+#### How Tags Work
+
+* When your path lands on a Table Entry that had a tag, that tag and its number accumulates to for the scenario run.
+* If a Scenario Event has Outcomes that require Tags to be a minimum value, all of those will be checked agaisnt your accumulated Tag values.
+* If there are Outcomes that pass the Tag check, then the possible Outcomes will randomized between those Outcomes where all of their Tags passed the accumulation check.
+* If all Tag accumulation checks fail, then the possible Outcomes will be randomized between Outcomes which have no Tags
 
 ## The Scenario Flow
 
-When you call `scenario.create()`, here's what happens:
+When you call `scenario.run()`, here's what happens:
 
 1. **Start** with the first registered event's table
 2. **Roll** using the RNG to get a random entry from that table
 3. **Accumulate** any tags from the rolled entry
 4. **Find** the event matching this table + entry combination
 5. **Check** if any outcome's tag thresholds are met
-  - If yes → go to that outcome's table
-  - If no → use weighted probability to select an outcome
+  - If yes → outcomes with met tag threshold are candidates
+  - If all no → outcomes with no tag thresholds are candidates
 6. **Repeat** steps 2-5 until no more events match
 
 The result is a path through your tables, with all accumulated tags at each step.
