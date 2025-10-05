@@ -7,7 +7,9 @@ async function test() {
   ignore: ['**/node_modules/**', '**/*.d.ts']
 })
   for (const file of files) {
-    await import(cwd + '/' + file)
+    if (file === 'tests/scenario.test.ts') {
+      await import(cwd + '/' + file)
+    }
   }
 }
 

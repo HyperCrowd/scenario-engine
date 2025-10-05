@@ -5,6 +5,13 @@ import Outcome from './outcome'
 import SimpleSeededRNG from './rng'
 import Table from './table'
 
+type Path = {
+  tableName: string
+  entry: string
+  roll: number,
+  tags: Map<string, number>
+}
+
 /**
  * Represents a Scenario which chains table entries through Events and Outcomes.
  */
@@ -17,8 +24,7 @@ export default class Scenario {
   events: ScenarioEvent[]
 
   /**
-   * @param name - Name of the scenario
-   * @param rng - RNG with random() and randomInt(max) methods
+   * Constructor
    */
   constructor(name: string, rng: SimpleSeededRNG) {
     this.name = name
@@ -27,15 +33,7 @@ export default class Scenario {
   }
 
   /**
-   * Registers an Event to the scenario.
-   * @param event - Event to register
-   */
-  register(event: ScenarioEvent) {
-    this.events.push(event)
-  }
-
-  /**
-   * 
+   * Gets a table
    */
   private getTable (tableName: string)  {
     const table = TableManager.getTable(tableName)
@@ -48,10 +46,10 @@ export default class Scenario {
   }
 
   /**
-   * 
+   * Gets a Table Entry
    */
   private getEntry (table: Table, accumulatedTags: Map<string, number>) {
-    const roll = 62 // this.rng.randomInt(0, table.getMaxValue()) + 1
+    const roll = this.rng.randomInt(0, table.getMaxValue()) + 1
     const entry = table.getEntry(roll)
 
     if (!entry) {
@@ -70,109 +68,150 @@ export default class Scenario {
   }
 
   /**
+   * Registers an Event to the scenario.
+   */
+  add(event: ScenarioEvent) {
+    this.events.push(event)
+  }
+
+  /**
+   * Gets a random Outcome from a Scenario Event
+   */
+  private getRandomOutcome(scenarioEvent: ScenarioEvent) {
+    const cumulative: { outcome: Outcome; cumulativeLikelihood: number }[] = []
+    let sum = 0
+
+    for (const outcome of scenarioEvent.outcomes) {
+      sum += outcome.likelihood
+      cumulative.push({ outcome, cumulativeLikelihood: sum })
+    }
+
+    if (sum === 0) {
+      throw new Error(`Outcome likelihoods are not properly set for the "${scenarioEvent.entryName}" scenario entry`)
+    }
+
+    const rand = this.rng.random() * sum
+    const outcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome
+
+    if (!outcome) {
+      throw new Error(`Somehow, the outcome distributions for "${scenarioEvent.entryName}" are bad.`)
+    }
+
+    return outcome
+  }
+
+  /**
+   * Gets the next outcome of a Scenario Event
+   */
+  getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Map<string, number> }): Outcome | false {
+    let outcome: Outcome | undefined
+
+    if (criteria !== undefined) {
+      if (criteria.byTags) {
+        /**
+         * Find outcome by tags
+         **/
+        const accumulatedTags = criteria.byTags
+
+        const possibleOutcome = scenarioEvent.outcomes.find(outcome => {
+          if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
+            return false
+          }
+
+          return outcome.tagThresholds.every(({ name, minValue }) => {
+            return (accumulatedTags.get(name) || 0) >= minValue
+          })
+        })
+
+        if (possibleOutcome) {
+          outcome = possibleOutcome
+        }
+      }
+      
+      if (outcome === undefined && criteria.randomly) {
+        /**
+         * Find outcome by probability
+         */
+        outcome = this.getRandomOutcome(scenarioEvent)
+      }
+      
+      if (outcome === undefined && criteria.byTableName) {
+        /**
+         * Find outcome by table name
+         */
+        const possibleOutcome = scenarioEvent.outcomes.find((o) => o.tableName === criteria.byTableName)
+
+        if (!possibleOutcome) {
+          return false
+        }
+
+        outcome = possibleOutcome
+      }
+
+      if (outcome === undefined) {
+        return false
+      }
+    } else if (criteria === undefined) {
+      /**
+       * Find outcome by probability
+       */
+      outcome = this.getRandomOutcome(scenarioEvent)
+    } else {
+      throw new Error(`Invalid criterial: ${JSON.stringify(criteria, null, 2)}`)
+    }
+
+    return outcome
+  }
+
+  /**
    * Starts running the scenario from the first registered event.
    * @returns Array of objects representing the path of entries chosen during scenario execution
    */
-  async create(): Promise<Array<{
-    tableName: string
-    entry: TableEntry
-    accumulatedTags: Map<string, number>
-  }>> {
+  run(path: Path[] = [], currentEvent: ScenarioEvent | undefined = this.events[0]): Path[] {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
 
-    const path: Array<{
-      tableName: string
-      entry: TableEntry
-      roll: number,
-      accumulatedTags: Map<string, number>
-    }> = []
-
     const accumulatedTags = new Map<string, number>()
 
-    let currentEvent: ScenarioEvent | undefined = this.events[0]
+    const table = this.getTable(currentEvent.tableName)
+    const { roll, entry } = this.getEntry(table, accumulatedTags)
 
-    while (currentEvent) {
-      const table = this.getTable(currentEvent.tableName)
+    path.push({
+      roll,
+      tableName: table.name,
+      entry: entry.name,
+      tags: new Map(accumulatedTags)
+    })
 
-      const { roll, entry } = this.getEntry(table, accumulatedTags)
+    const outcome = this.getNextOutcome(currentEvent, {
+      byTags: accumulatedTags,
+      randomly: true
+    })
 
-      path.push({
-        tableName: table.name,
-        entry,
-        roll,
-        accumulatedTags: new Map(accumulatedTags)
-      })
-
-      // Find the event that matches current table and entry
-      // currentEvent = this.events.find(
-      //   e => e.tableName === table.name && e.entryName === entry.name
-      // )
-
-      // if (!currentEvent) {
-      //   break
-      // }
-
-      // Determine next outcome by tag thresholds first
-      let nextOutcome = currentEvent.outcomes.find(outcome => {
-        if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
-          return false
+    if (outcome) {
+      // There is an outcome
+      const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName)
+      
+      if (nextEvents.length > 0) {
+        // Go through known scenario events involving this table
+        for (const nextEvent of nextEvents) {
+          this.run(path, nextEvent)
         }
-
-        return outcome.tagThresholds.every(({ name, minValue }) => {
-          return (accumulatedTags.get(name) || 0) >= minValue
-        })
-      })
-
-      if (nextOutcome) {
-        currentEvent = this.events.find(e => e.tableName === nextOutcome?.tableName)
-
-        if (!currentEvent) {
-          break
-        }
-
-        continue
-      }
-
-      // Likelihood-based outcome selection
-      const cumulative: { outcome: Outcome; cumulativeLikelihood: number }[] = []
-      let sum = 0
-      for (const outcome of currentEvent.outcomes) {
-        if (outcome.tagThresholds && outcome.tagThresholds.length > 0) {
-          continue
-        }
-
-        sum += outcome.likelihood
-        cumulative.push({ outcome, cumulativeLikelihood: sum })
-      }
-
-      if (sum === 0) {
-        break
-      }
-
-      const rand = this.rng.random() * sum
-      nextOutcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome
-
-      if (!nextOutcome) {
-        break
-      }
-
-      currentEvent = this.events.find(e => e.tableName === nextOutcome.tableName)
-
-      if (!currentEvent) {
-        // At the end, hit the last table
-        const table = this.getTable(nextOutcome.tableName)
-
+      } else {
+        // We are done
+        const table = this.getTable(outcome.tableName)
         const { roll, entry } = this.getEntry(table, accumulatedTags)
 
         path.push({
-          tableName: table.name,
-          entry,
           roll,
-          accumulatedTags: new Map(accumulatedTags)
-      })
+          tableName: table.name,
+          entry: entry.name,
+          tags: new Map(accumulatedTags)
+        })
       }
+
+      
     }
 
     return path
