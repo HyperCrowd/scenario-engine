@@ -302,9 +302,9 @@ var SimpleSeededRNG = class {
 };
 export {
   Outcome,
-  SimpleSeededRNG as RNG,
   Scenario,
   ScenarioEvent,
+  SimpleSeededRNG,
   Table,
   TableEntry,
   tableManager_default as TableManager,

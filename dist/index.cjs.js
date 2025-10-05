@@ -20,9 +20,9 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   Outcome: () => Outcome,
-  RNG: () => SimpleSeededRNG,
   Scenario: () => Scenario,
   ScenarioEvent: () => ScenarioEvent,
+  SimpleSeededRNG: () => SimpleSeededRNG,
   Table: () => Table,
   TableEntry: () => TableEntry,
   TableManager: () => tableManager_default,
@@ -335,9 +335,9 @@ var SimpleSeededRNG = class {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Outcome,
-  RNG,
   Scenario,
   ScenarioEvent,
+  SimpleSeededRNG,
   Table,
   TableEntry,
   TableManager,
