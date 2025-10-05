@@ -5,7 +5,9 @@ import Outcome from './outcome'
 import SimpleSeededRNG from './rng'
 import Table from './table'
 
-type Path = {
+type Tags = Map<string, number>
+
+type PathEvent = {
   tableName: string
   entry: string
   roll: number,
@@ -77,51 +79,72 @@ export default class Scenario {
   /**
    * Gets a random Outcome from a Scenario Event
    */
-  private getRandomOutcome(scenarioEvent: ScenarioEvent) {
+  private getRandomOutcome(scenarioEvent: ScenarioEvent, outcomes: Outcome[] = scenarioEvent.outcomes): Outcome | false  {
     const cumulative: { outcome: Outcome; cumulativeLikelihood: number }[] = []
     let sum = 0
 
-    for (const outcome of scenarioEvent.outcomes) {
+    for (const outcome of outcomes) {
       sum += outcome.likelihood
       cumulative.push({ outcome, cumulativeLikelihood: sum })
-    }
-
-    if (sum === 0) {
-      throw new Error(`Outcome likelihoods are not properly set for the "${scenarioEvent.entryName}" scenario entry`)
     }
 
     const rand = this.rng.random() * sum
     const outcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome
 
     if (!outcome) {
-      throw new Error(`Somehow, the outcome distributions for "${scenarioEvent.entryName}" are bad.`)
+      return false
     }
 
     return outcome
   }
 
+  private getPossibleOutcomes (scenarioEvent: ScenarioEvent, accumulatedTags: Tags) {
+    const hasThresholds = scenarioEvent.outcomes.filter(outcome => {
+      return outcome.tagThresholds && outcome.tagThresholds.length > 0
+    }).length > 0
+
+    const possibleOutcomes: Outcome[] = scenarioEvent.outcomes.filter(outcome => {
+      if (hasThresholds) {
+        // This scenario event has thresholds, use them
+        if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
+          return false
+        }
+
+        return outcome.tagThresholds.every(({ name, minValue }) => {
+          return (accumulatedTags.get(name) || 0) >= minValue
+        })
+      } else {
+        // This scenario event has no thresholds, use them
+        return outcome
+      }
+    })
+
+    if (hasThresholds && possibleOutcomes.length === 0) {
+      // All threshold checks have failed, use all non-thresholded outcomesinstead
+      return scenarioEvent.outcomes.filter(outcome => {
+        return outcome.tagThresholds && outcome.tagThresholds.length === 0
+      })
+    } else {
+      // Return all possible outcomes
+      return possibleOutcomes
+    }
+  }
+
   /**
    * Gets the next outcome of a Scenario Event
    */
-  getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Map<string, number> }): Outcome | false {
+  getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Tags}): Outcome | undefined {
     let outcome: Outcome | undefined
 
     if (criteria !== undefined) {
-      if (criteria.byTags) {
+      const accumulatedTags = criteria.byTags ?? new Map<string, number>()
+      const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, accumulatedTags)
+
+      if (accumulatedTags.size > 0) {
         /**
          * Find outcome by tags
          **/
-        const accumulatedTags = criteria.byTags
-
-        const possibleOutcome = scenarioEvent.outcomes.find(outcome => {
-          if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
-            return false
-          }
-
-          return outcome.tagThresholds.every(({ name, minValue }) => {
-            return (accumulatedTags.get(name) || 0) >= minValue
-          })
-        })
+        const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes)
 
         if (possibleOutcome) {
           outcome = possibleOutcome
@@ -132,7 +155,11 @@ export default class Scenario {
         /**
          * Find outcome by probability
          */
-        outcome = this.getRandomOutcome(scenarioEvent)
+        const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes)
+
+        if (possibleOutcome) {
+          outcome = possibleOutcome
+        }
       }
       
       if (outcome === undefined && criteria.byTableName) {
@@ -141,21 +168,21 @@ export default class Scenario {
          */
         const possibleOutcome = scenarioEvent.outcomes.find((o) => o.tableName === criteria.byTableName)
 
-        if (!possibleOutcome) {
-          return false
+        if (possibleOutcome) {
+          outcome = possibleOutcome
         }
-
-        outcome = possibleOutcome
-      }
-
-      if (outcome === undefined) {
-        return false
       }
     } else if (criteria === undefined) {
       /**
        * Find outcome by probability
        */
-      outcome = this.getRandomOutcome(scenarioEvent)
+      const possibleOutcome = this.getRandomOutcome(scenarioEvent)
+
+      if (possibleOutcome) {
+        outcome = possibleOutcome
+      }
+
+      
     } else {
       throw new Error(`Invalid criterial: ${JSON.stringify(criteria, null, 2)}`)
     }
@@ -164,27 +191,44 @@ export default class Scenario {
   }
 
   /**
-   * Starts running the scenario from the first registered event.
-   * @returns Array of objects representing the path of entries chosen during scenario execution
+   * 
+   * @param path 
+   * @param currentEvent 
+   * @param accumulatedTags 
    */
-  run(path: Path[] = [], currentEvent: ScenarioEvent | undefined = this.events[0]): Path[] {
-    if (this.events.length === 0) {
-      throw new Error('No events registered in the scenario.')
-    }
-
-    const accumulatedTags = new Map<string, number>()
-
-    const table = this.getTable(currentEvent.tableName)
+  getPathEvent (tableName: string, accumulatedTags: Map<string, number>) {
+    const table = this.getTable(tableName)
     const { roll, entry } = this.getEntry(table, accumulatedTags)
 
-    path.push({
+    return {
       roll,
       tableName: table.name,
       entry: entry.name,
       tags: new Map(accumulatedTags)
-    })
+    }
+  }
 
-    const outcome = this.getNextOutcome(currentEvent, {
+  /**
+   * Starts running the scenario from the first registered event.
+   * @returns Array of objects representing the path of entries chosen during scenario execution
+   */
+  run(accumulatedTags: Tags = new Map<string, number>(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = [], ): { path: PathEvent[], tags: Tags } {
+    if (this.events.length === 0) {
+      throw new Error('No events registered in the scenario.')
+    }
+
+    const pathEvent = this.getPathEvent(currentEvent.tableName, accumulatedTags)
+
+    path.push(pathEvent)
+
+    const nextEvent: ScenarioEvent | undefined = this.events.find((e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName)
+
+    if (nextEvent === undefined) {
+      path.push(this.getPathEvent(currentEvent.tableName, accumulatedTags))
+      return { path, tags: accumulatedTags }
+    }
+
+    const outcome = this.getNextOutcome(nextEvent, {
       byTags: accumulatedTags,
       randomly: true
     })
@@ -196,24 +240,19 @@ export default class Scenario {
       if (nextEvents.length > 0) {
         // Go through known scenario events involving this table
         for (const nextEvent of nextEvents) {
-          this.run(path, nextEvent)
+          this.run(accumulatedTags, nextEvent, path)
         }
       } else {
         // We are done
-        const table = this.getTable(outcome.tableName)
-        const { roll, entry } = this.getEntry(table, accumulatedTags)
-
-        path.push({
-          roll,
-          tableName: table.name,
-          entry: entry.name,
-          tags: new Map(accumulatedTags)
-        })
+        path.push(this.getPathEvent(outcome.tableName, accumulatedTags))
       }
 
       
     }
 
-    return path
+    return {
+      path,
+      tags: accumulatedTags
+    }
   }
 }
