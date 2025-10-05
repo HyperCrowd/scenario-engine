@@ -7,6 +7,3 @@ export { default as TableEntry } from './tableEntry'
 export { default as TableManager } from './tableManager'
 export { default as Tag } from './tag'
 export { default as RNG } from './rng'
-
-// Type exports
-export type { TagThreshold } from './outcome'

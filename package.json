@@ -1,14 +1,29 @@
 {
   "name": "scenario.engine",
+  "description": "A TypeScript library for creating dynamic D&D scenarios by chaining random tables together",
   "version": "1.0.0",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "browser": "dist/index.browser.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "browser": "./dist/index.browser.js",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js"
+    }
+  },
+    "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --platform=browser --format=esm",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:browser",
+    "build:esm": "npx esbuild src/index.ts --bundle --outfile=dist/index.esm.js --platform=node --format=esm --sourcemap",
+    "build:cjs": "npx esbuild src/index.ts --bundle --outfile=dist/index.cjs.js --platform=node --format=cjs --sourcemap",
+    "build:browser": "npx esbuild src/index.ts --bundle --outfile=dist/index.browser.js --platform=browser --format=esm --sourcemap",
     "test": "npx tsx tests/index.ts"
   },
   "author": "Patrick Ryan",
-  "description": "",
   "devDependencies": {
     "@types/node": "^24.6.2",
     "esbuild": "^0.25.10",

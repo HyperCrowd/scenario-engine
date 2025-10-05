@@ -310,3 +310,4 @@ export {
   tableManager_default as TableManager,
   Tag
 };
+//# sourceMappingURL=index.esm.js.map
