@@ -405,6 +405,8 @@ To automatically run tests when you update codE:
 npm run dev
 ```
 
+To review the API Guide for the Scenrio Engine, [go here](API.md).
+
 Uses [uvu](https://github.com/lukeed/uvu) for fast, lightweight testing.
 
 ## Tips for DMs

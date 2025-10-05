@@ -8,8 +8,8 @@ The core class that orchestrates table chaining.
 new Scenario(name: string, rng: RNG)
 ```
 
-- `register(event: ScenarioEvent)` - Register an event linking a table entry to outcomes
-- `create()` - Execute the scenario, returns path of all rolled entries with accumulated tags
+- `add(event: ScenarioEvent)` - Register an event linking a table entry to outcomes
+- `run(accumulatedTags?: Tags, currentEvent?: ScenarioEvent, path?: PathEvent[])` - Execute the scenario, returns path of all rolled entries with accumulated tags
 
 ### ScenarioEvent
 
@@ -20,7 +20,7 @@ new ScenarioEvent(tableName: string, entryName: string, outcomes: Outcome[])
 ```
 
 - `tableName` - Name of the table this event is for
-- `entryName` - Specific entry name that triggers this event
+- `entry` - Specific entry name that triggers this event
 - `outcomes` - Array of possible next steps
 
 ### Outcome
