@@ -28,7 +28,7 @@ export default class Scenario {
   /**
    * Constructor
    */
-  constructor(name: string, rng: SimpleSeededRNG) {
+  constructor(name: string, rng: SimpleSeededRNG = new SimpleSeededRNG()) {
     this.name = name
     this.rng = rng
     this.events = []
@@ -224,7 +224,7 @@ export default class Scenario {
     const nextEvent: ScenarioEvent | undefined = this.events.find((e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName)
 
     if (nextEvent === undefined) {
-      path.push(this.getPathEvent(currentEvent.tableName, accumulatedTags))
+      // path.push(this.getPathEvent(currentEvent.tableName, accumulatedTags))
       return { path, tags: accumulatedTags }
     }
 

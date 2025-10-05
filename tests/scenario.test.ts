@@ -1,4 +1,3 @@
-// tests/scenario.extended.test.ts
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import Scenario from '../src/scenario'
@@ -42,7 +41,7 @@ const getRng = (random: number | (() => number), randomInt: number | ((max: numb
   return new MockRNG()
 }
 
-scenarioTests('accumulates multiple different tags across entries', async () => {
+scenarioTests('accumulates multiple different tags across entries', () => {
   const rng = getRng(0.5, 52)
 
   new Table('QuestStart', [
@@ -73,7 +72,7 @@ scenarioTests('accumulates multiple different tags across entries', async () => 
   ]))
 
   // Run the scenario
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   assert.is(path.length, 2)
 
@@ -91,7 +90,7 @@ scenarioTests('accumulates multiple different tags across entries', async () => 
 
 
 // --- Test: Multiple tags accumulate correctly ---
-scenarioTests('accumulates multiple different tags across entries', async () => {
+scenarioTests('accumulates multiple different tags across entries', () => {
   const scenario = new Scenario('MultiTagScenario', getRng(0.5, 0))
 
   new Table('Table1', [new TableEntry(1, 1, 'Start', [
@@ -109,7 +108,7 @@ scenarioTests('accumulates multiple different tags across entries', async () => 
   scenario.add(new ScenarioEvent('Table1', 'Start', [new Outcome(1, 'Table2')]))
   scenario.add(new ScenarioEvent('Table2', 'Middle', [new Outcome(1, 'Table3')]))
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   assert.is(path.length, 3)
 
@@ -135,7 +134,7 @@ scenarioTests('accumulates multiple different tags across entries', async () => 
 })
 
 // --- Test: Likelihood-based branching with multiple outcomes ---
-scenarioTests('selects outcomes based on likelihood weights', async () => {
+scenarioTests('selects outcomes based on likelihood weights', () => {
   const entry1 = new TableEntry(1, 1, 'Choice', [])
   new Table('Start', [entry1])
   new Table('PathA', [new TableEntry(1, 1, 'A', [])])
@@ -160,7 +159,7 @@ scenarioTests('selects outcomes based on likelihood weights', async () => {
     const scenario = new Scenario('LikelihoodTest', getRng(() => Math.random(), 0))
 
     scenario.add(new ScenarioEvent('Start', 'Choice', outcomes))
-    const { path } = await scenario.run()
+    const { path } = scenario.run()
 
     if (path.length > 1) {
       counts[path[1].tableName as keyof typeof counts]++
@@ -174,7 +173,7 @@ scenarioTests('selects outcomes based on likelihood weights', async () => {
 })
 
 // --- Test: Tag threshold blocks lower-priority outcomes ---
-scenarioTests('tag threshold takes priority over likelihood', async () => {
+scenarioTests('tag threshold takes priority over likelihood', () => {
   new Table('Table1', [
     new TableEntry(1, 1, 'Start', [
       new Tag('power', 10)
@@ -190,7 +189,7 @@ scenarioTests('tag threshold takes priority over likelihood', async () => {
     new Outcome(0.1, 'StrongPath', [{ name: 'power', minValue: 10 }])  // Threshold met
   ]))
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   // Should take StrongPath because threshold is met, despite lower likelihood
   assert.equal(path.length, 2)
@@ -198,7 +197,7 @@ scenarioTests('tag threshold takes priority over likelihood', async () => {
 })
 
 // --- Test: Long chain scenario ---
-scenarioTests('handles long chain of events', async () => {
+scenarioTests('handles long chain of events', () => {
   const tables: Table[] = []
   for (let i = 1; i <= 10; i++) {
     const entry = new TableEntry(1, 1, `Step${i}`, [new Tag('progress', i)])
@@ -213,14 +212,14 @@ scenarioTests('handles long chain of events', async () => {
     )
   }
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   assert.equal(path.length, 10)
   assert.is(path[9].tags.get('progress'), 55) // Sum 1..10
 })
 
 // --- Test: Scenario terminates when no matching event ---
-scenarioTests('terminates gracefully when no next event matches', async () => {
+scenarioTests('terminates gracefully when no next event matches', () => {
   const entry1 = new TableEntry(1, 1, 'Start', [])
   const entry2 = new TableEntry(1, 1, 'End', [])
   new Table('Table1', [entry1])
@@ -231,7 +230,7 @@ scenarioTests('terminates gracefully when no next event matches', async () => {
   // Only register event for Table1, not Table2
   scenario.add(new ScenarioEvent('Table1', 'Start', [new Outcome(1, 'Table2')]))
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   assert.equal(path.length, 2)
   assert.is(path[0].tableName, 'Table1')
@@ -239,7 +238,7 @@ scenarioTests('terminates gracefully when no next event matches', async () => {
 })
 
 // --- Test: Entry with no tags maintains empty accumulated tags ---
-scenarioTests('entries without tags do not modify accumulated tags', async () => {
+scenarioTests('entries without tags do not modify accumulated tags', () => {
   const entry1 = new TableEntry(1, 1, 'Tagged', [new Tag('magic', 5)])
   const entry2 = new TableEntry(1, 1, 'Untagged', [])
   new Table('Table1', [entry1])
@@ -249,14 +248,14 @@ scenarioTests('entries without tags do not modify accumulated tags', async () =>
 
   scenario.add(new ScenarioEvent('Table1', 'Tagged', [new Outcome(1, 'Table2')]))
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   assert.is(path[0].tags.get('magic'), 5)
   assert.is(path[1].tags.get('magic'), 5) // Still 5, not modified
 })
 
 // --- Test: Outcome with zero likelihood is never selected ---
-scenarioTests('zero likelihood outcome is never selected', async () => {
+scenarioTests('zero likelihood outcome is never selected', () => {
   const entry1 = new TableEntry(1, 1, 'Choice', [])
   new Table('Start', [entry1])
   new Table('Never', [new TableEntry(1, 1, 'ShouldNotReach', [])])
@@ -279,7 +278,7 @@ scenarioTests('zero likelihood outcome is never selected', async () => {
       ])
     )
 
-    const { path } = await scenario.run()
+    const { path } = scenario.run()
 
     if (path.length > 1 && path[1].tableName === 'Never') {
       neverReached = true
@@ -291,7 +290,7 @@ scenarioTests('zero likelihood outcome is never selected', async () => {
 })
 
 // --- Test: Complex branching with multiple threshold checks ---
-scenarioTests('complex scenario with multiple branching points', async () => {
+scenarioTests('complex scenario with multiple branching points', () => {
   new Table('Start', [new TableEntry(1, 1, 'Begin', [new Tag('score', 0)])])
   new Table('Choice1', [new TableEntry(1, 1, 'FirstChoice', [new Tag('score', 5)])])
   new Table('Choice2', [new TableEntry(1, 1, 'SecondChoice', [new Tag('score', 3)])])
@@ -309,7 +308,7 @@ scenarioTests('complex scenario with multiple branching points', async () => {
     ])
   )
 
-  const { path } = await scenario.run()
+  const { path } = scenario.run()
 
   // score accumulates to 8 (0 + 5 + 3), so should reach good ending
   assert.equal(path.length, 4)
@@ -317,7 +316,7 @@ scenarioTests('complex scenario with multiple branching points', async () => {
 })
 
 // --- Test: Different RNG produces different paths ---
-scenarioTests('different RNG seeds produce different paths', async () => {
+scenarioTests('different RNG seeds produce different paths', () => {
   new Table('Start', [
     new TableEntry(1, 50, 'Low', []),
     new TableEntry(51, 100, 'High', [])]
@@ -329,15 +328,15 @@ scenarioTests('different RNG seeds produce different paths', async () => {
   const scenario2 = new Scenario('RNG2', getRng(0.8, (max: number) => Math.floor(0.8 * max)))
   scenario2.add(new ScenarioEvent('Start', 'High', []))
 
-  const { path: path1 } = await scenario1.run()
-  const { path: path2 } = await scenario2.run()
+  const { path: path1 } = scenario1.run()
+  const { path: path2 } = scenario2.run()
 
   assert.is(path1[0].entry, 'Low')
   assert.is(path2[0].entry, 'High')
 })
 
 // --- Test: Multiple tag thresholds must ALL be met ---
-scenarioTests('outcome requires all tag thresholds to be met', async () => {
+scenarioTests('outcome requires all tag thresholds to be met', () => {
   new Table('Table1', [
     new TableEntry(1, 1, 'Quest', [
       new Tag('strength', 5),
@@ -360,7 +359,7 @@ scenarioTests('outcome requires all tag thresholds to be met', async () => {
 
   scenario1.add(new ScenarioEvent('Table1', 'Quest', outcomes1))
   
-  const { path: path1 } = await scenario1.run()
+  const { path: path1 } = scenario1.run()
   assert.is(path1[path1.length - 1].tableName, 'Success')
 
   // Test when one threshold is NOT met
@@ -378,7 +377,7 @@ scenarioTests('outcome requires all tag thresholds to be met', async () => {
   const scenario2 = new Scenario('OneMissing', getRng(0.5, 0))
 
   scenario2.add(new ScenarioEvent('Table1', 'Quest', outcomes1))
-  const { path: path2 } = await scenario2.run()
+  const { path: path2 } = scenario2.run()
 
   assert.is(path2[path2.length - 1].tableName, 'Failure')
 })

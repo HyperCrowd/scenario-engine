@@ -76,6 +76,39 @@ var TableManager = /* @__PURE__ */ (() => {
 })();
 var tableManager_default = TableManager;
 
+// src/rng.ts
+var SimpleSeededRNG = class {
+  state;
+  constructor(seed) {
+    if (seed === void 0) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      this.state = array[0];
+    } else if (typeof seed === "string") {
+      let h = 1779033703 ^ seed.length;
+      for (let i = 0; i < seed.length; i++) {
+        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+        h = h << 13 | h >>> 19;
+      }
+      this.state = h >>> 0;
+    } else {
+      this.state = seed >>> 0;
+    }
+  }
+  /** Returns a float between 0 (inclusive) and 1 (exclusive). */
+  random() {
+    this.state += 1831565813;
+    let t = this.state;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+  /** Returns an integer between min (inclusive) and max (exclusive). */
+  randomInt(min, max) {
+    return Math.floor(this.random() * (max - min)) + min;
+  }
+};
+
 // src/scenario.ts
 var Scenario = class {
   /** Name of the scenario */
@@ -85,23 +118,15 @@ var Scenario = class {
   /** Registered events in this scenario */
   events;
   /**
-   * @param name - Name of the scenario
-   * @param rng - RNG with random() and randomInt(max) methods
+   * Constructor
    */
-  constructor(name, rng) {
+  constructor(name, rng = new SimpleSeededRNG()) {
     this.name = name;
     this.rng = rng;
     this.events = [];
   }
   /**
-   * Registers an Event to the scenario.
-   * @param event - Event to register
-   */
-  register(event) {
-    this.events.push(event);
-  }
-  /**
-   * 
+   * Gets a table
    */
   getTable(tableName) {
     const table = tableManager_default.getTable(tableName);
@@ -111,10 +136,10 @@ var Scenario = class {
     return table;
   }
   /**
-   * 
+   * Gets a Table Entry
    */
   getEntry(table, accumulatedTags) {
-    const roll = 62;
+    const roll = this.rng.randomInt(0, table.getMaxValue()) + 1;
     const entry = table.getEntry(roll);
     if (!entry) {
       throw new Error(`No entry found for roll ${roll} in table "${table.name}".`);
@@ -130,71 +155,136 @@ var Scenario = class {
     };
   }
   /**
-   * Starts running the scenario from the first registered event.
-   * @returns Array of objects representing the path of entries chosen during scenario execution
+   * Registers an Event to the scenario.
    */
-  async create() {
-    if (this.events.length === 0) {
-      throw new Error("No events registered in the scenario.");
+  add(event) {
+    this.events.push(event);
+  }
+  /**
+   * Gets a random Outcome from a Scenario Event
+   */
+  getRandomOutcome(scenarioEvent, outcomes = scenarioEvent.outcomes) {
+    const cumulative = [];
+    let sum = 0;
+    for (const outcome2 of outcomes) {
+      sum += outcome2.likelihood;
+      cumulative.push({ outcome: outcome2, cumulativeLikelihood: sum });
     }
-    const path = [];
-    const accumulatedTags = /* @__PURE__ */ new Map();
-    let currentEvent = this.events[0];
-    while (currentEvent) {
-      const table = this.getTable(currentEvent.tableName);
-      const { roll, entry } = this.getEntry(table, accumulatedTags);
-      path.push({
-        tableName: table.name,
-        entry,
-        roll,
-        accumulatedTags: new Map(accumulatedTags)
-      });
-      let nextOutcome = currentEvent.outcomes.find((outcome) => {
+    const rand = this.rng.random() * sum;
+    const outcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome;
+    if (!outcome) {
+      return false;
+    }
+    return outcome;
+  }
+  getPossibleOutcomes(scenarioEvent, accumulatedTags) {
+    const hasThresholds = scenarioEvent.outcomes.filter((outcome) => {
+      return outcome.tagThresholds && outcome.tagThresholds.length > 0;
+    }).length > 0;
+    const possibleOutcomes = scenarioEvent.outcomes.filter((outcome) => {
+      if (hasThresholds) {
         if (!outcome.tagThresholds || outcome.tagThresholds.length === 0) {
           return false;
         }
         return outcome.tagThresholds.every(({ name, minValue }) => {
           return (accumulatedTags.get(name) || 0) >= minValue;
         });
+      } else {
+        return outcome;
+      }
+    });
+    if (hasThresholds && possibleOutcomes.length === 0) {
+      return scenarioEvent.outcomes.filter((outcome) => {
+        return outcome.tagThresholds && outcome.tagThresholds.length === 0;
       });
-      if (nextOutcome) {
-        currentEvent = this.events.find((e) => e.tableName === nextOutcome?.tableName);
-        if (!currentEvent) {
-          break;
+    } else {
+      return possibleOutcomes;
+    }
+  }
+  /**
+   * Gets the next outcome of a Scenario Event
+   */
+  getNextOutcome(scenarioEvent, criteria) {
+    let outcome;
+    if (criteria !== void 0) {
+      const accumulatedTags = criteria.byTags ?? /* @__PURE__ */ new Map();
+      const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, accumulatedTags);
+      if (accumulatedTags.size > 0) {
+        const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes);
+        if (possibleOutcome) {
+          outcome = possibleOutcome;
         }
-        continue;
       }
-      const cumulative = [];
-      let sum = 0;
-      for (const outcome of currentEvent.outcomes) {
-        console.log({ currentEvent, outcome });
-        if (outcome.tagThresholds && outcome.tagThresholds.length > 0) {
-          continue;
+      if (outcome === void 0 && criteria.randomly) {
+        const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes);
+        if (possibleOutcome) {
+          outcome = possibleOutcome;
         }
-        sum += outcome.likelihood;
-        cumulative.push({ outcome, cumulativeLikelihood: sum });
       }
-      if (sum === 0) {
-        break;
+      if (outcome === void 0 && criteria.byTableName) {
+        const possibleOutcome = scenarioEvent.outcomes.find((o) => o.tableName === criteria.byTableName);
+        if (possibleOutcome) {
+          outcome = possibleOutcome;
+        }
       }
-      const rand = this.rng.random() * sum;
-      nextOutcome = cumulative.find(({ cumulativeLikelihood }) => rand <= cumulativeLikelihood)?.outcome;
-      if (!nextOutcome) {
-        break;
+    } else if (criteria === void 0) {
+      const possibleOutcome = this.getRandomOutcome(scenarioEvent);
+      if (possibleOutcome) {
+        outcome = possibleOutcome;
       }
-      currentEvent = this.events.find((e) => e.tableName === nextOutcome.tableName);
-      if (!currentEvent) {
-        const table2 = this.getTable(nextOutcome.tableName);
-        const { roll: roll2, entry: entry2 } = this.getEntry(table2, accumulatedTags);
-        path.push({
-          tableName: table2.name,
-          entry: entry2,
-          roll: roll2,
-          accumulatedTags: new Map(accumulatedTags)
-        });
+    } else {
+      throw new Error(`Invalid criterial: ${JSON.stringify(criteria, null, 2)}`);
+    }
+    return outcome;
+  }
+  /**
+   * 
+   * @param path 
+   * @param currentEvent 
+   * @param accumulatedTags 
+   */
+  getPathEvent(tableName, accumulatedTags) {
+    const table = this.getTable(tableName);
+    const { roll, entry } = this.getEntry(table, accumulatedTags);
+    return {
+      roll,
+      tableName: table.name,
+      entry: entry.name,
+      tags: new Map(accumulatedTags)
+    };
+  }
+  /**
+   * Starts running the scenario from the first registered event.
+   * @returns Array of objects representing the path of entries chosen during scenario execution
+   */
+  run(accumulatedTags = /* @__PURE__ */ new Map(), currentEvent = this.events[0], path = []) {
+    if (this.events.length === 0) {
+      throw new Error("No events registered in the scenario.");
+    }
+    const pathEvent = this.getPathEvent(currentEvent.tableName, accumulatedTags);
+    path.push(pathEvent);
+    const nextEvent = this.events.find((e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName);
+    if (nextEvent === void 0) {
+      return { path, tags: accumulatedTags };
+    }
+    const outcome = this.getNextOutcome(nextEvent, {
+      byTags: accumulatedTags,
+      randomly: true
+    });
+    if (outcome) {
+      const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName);
+      if (nextEvents.length > 0) {
+        for (const nextEvent2 of nextEvents) {
+          this.run(accumulatedTags, nextEvent2, path);
+        }
+      } else {
+        path.push(this.getPathEvent(outcome.tableName, accumulatedTags));
       }
     }
-    return path;
+    return {
+      path,
+      tags: accumulatedTags
+    };
   }
 };
 
@@ -216,20 +306,6 @@ var ScenarioEvent = class {
     this.entryName = entryName;
     this.outcomes = outcomes;
   }
-  /**
-   * Example async method to randomly select an outcome based on likelihood
-   */
-  async selectOutcome() {
-    if (this.outcomes.length === 0) return null;
-    const total = this.outcomes.reduce((sum, o) => sum + o.likelihood, 0);
-    const rand = Math.random() * total;
-    let cumulative = 0;
-    for (const outcome of this.outcomes) {
-      cumulative += outcome.likelihood;
-      if (rand <= cumulative) return outcome;
-    }
-    return this.outcomes[this.outcomes.length - 1];
-  }
 };
 
 // src/outcome.ts
@@ -246,7 +322,7 @@ var Outcome = class {
    * Optional array of tag thresholds required to trigger this outcome.
    * Each threshold includes a tag name and its minimum required value.
    */
-  tagThresholds;
+  tagThresholds = [];
   /**
    * Creates a new Outcome instance.
    * @param likelihood - Probability between 0 and 1 for this outcome.
@@ -299,39 +375,6 @@ var Tag = class {
   constructor(name, value) {
     this.name = name;
     this.value = value;
-  }
-};
-
-// src/rng.ts
-var SimpleSeededRNG = class {
-  state;
-  constructor(seed) {
-    if (seed === void 0) {
-      const array = new Uint32Array(1);
-      crypto.getRandomValues(array);
-      this.state = array[0];
-    } else if (typeof seed === "string") {
-      let h = 1779033703 ^ seed.length;
-      for (let i = 0; i < seed.length; i++) {
-        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-        h = h << 13 | h >>> 19;
-      }
-      this.state = h >>> 0;
-    } else {
-      this.state = seed >>> 0;
-    }
-  }
-  /** Returns a float between 0 (inclusive) and 1 (exclusive). */
-  random() {
-    this.state += 1831565813;
-    let t = this.state;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-  /** Returns an integer between min (inclusive) and max (exclusive). */
-  randomInt(min, max) {
-    return Math.floor(this.random() * (max - min)) + min;
   }
 };
 export {

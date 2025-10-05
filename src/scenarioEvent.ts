@@ -21,22 +21,4 @@ export default class ScenarioEvent {
     this.entryName = entryName
     this.outcomes = outcomes
   }
-
-  /**
-   * Example async method to randomly select an outcome based on likelihood
-   */
-  async selectOutcome(): Promise<Outcome | null> {
-    if (this.outcomes.length === 0) return null
-
-    const total = this.outcomes.reduce((sum, o) => sum + o.likelihood, 0)
-    const rand = Math.random() * total
-    let cumulative = 0
-
-    for (const outcome of this.outcomes) {
-      cumulative += outcome.likelihood
-      if (rand <= cumulative) return outcome
-    }
-
-    return this.outcomes[this.outcomes.length - 1]
-  }
 }

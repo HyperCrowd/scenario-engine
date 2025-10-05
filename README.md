@@ -29,40 +29,47 @@ import { Scenario, ScenarioEvent, Outcome, Table, TableEntry, Tag, SimpleSeededR
 
 // Define your tables (like in a DM's guide)
 new Table('QuestStart', [
-  new TableEntry(1, 60, 'Village Tavern', [new Tag('safe', 1)]),
-  new TableEntry(61, 100, 'Dark Forest', [new Tag('danger', 2)])
+  new TableEntry(1, 60, 'Village Tavern', [
+    new Tag('safe', 1)
+  ]),
+  new TableEntry(61, 100, 'Dark Forest', [
+    new Tag('danger', 2)
+  ])
 ])
 
 new Table('TavernEvents', [
-  new TableEntry(1, 50, 'Meet Friendly NPC', [new Tag('safe', 1)]),
-  new TableEntry(51, 100, 'Overhear Quest Hook', [new Tag('intrigue', 1)])
+  new TableEntry(1, 50, 'Meet Friendly NPC', [
+    new Tag('safe', 1)
+  ]),
+  new TableEntry(51, 100, 'Overhear Quest Hook', [new 
+    Tag('intrigue', 1)
+  ])
 ])
 
 new Table('ForestEvents', [
-  new TableEntry(1, 70, 'Goblin Ambush', [new Tag('danger', 2)]),
-  new TableEntry(71, 100, 'Ancient Ruins', [new Tag('treasure', 1)])
+  new TableEntry(1, 70, 'Goblin Ambush', [new 
+    Tag('danger', 2)
+  ]),
+  new TableEntry(71, 100, 'Ancient Ruins', [
+    new Tag('treasure', 1)
+  ])
 ])
 
 // Create the scenario with seeded RNG
-const scenario = new Scenario('Village Quest', new SimpleSeededRNG('quest-42'))
+const scenario = new Scenario('Village Quest', rng)
 
 // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
-scenario.register(new ScenarioEvent('QuestStart', 'Village Tavern', [
+scenario.add(new ScenarioEvent('QuestStart', 'Village Tavern', [
   new Outcome(1, 'TavernEvents')
 ]))
 
-scenario.register(new ScenarioEvent('QuestStart', 'Dark Forest', [
+scenario.add(new ScenarioEvent('QuestStart', 'Dark Forest', [
   new Outcome(1, 'ForestEvents')
 ]))
 
 // Run the scenario
-const path = await scenario.create()
-
-// See what happened
-path.forEach(step => {
-  console.log(`${step.tableName}: ${step.entry.name}`)
-  console.log('Accumulated tags:', Object.fromEntries(step.accumulatedTags))
-})
+const { path } = await scenario.run()
+console.log(path)
 ```
 
 To see more examples, check out the [Scenario test](tests/scenario.test.ts)
@@ -77,15 +84,39 @@ npm install -S https://github.com/HyperCrowd/scenario-engine
 
 ### 1. Build Your Tables
 
-Each table represents a set of possible outcomes, just like in the DMG:
+Each table represents a set of possible outcomes, just like in the DMG. Tags accumulate as you progress through the scenario. They represent anything you want to track:
 
 ```typescript
 // A wandering monster table
 new Table('Encounters', [
-  new TableEntry(1, 40, 'Goblin Band', [new Tag('combat', 1)]),
-  new TableEntry(41, 70, 'Traveling Merchant', [new Tag('gold', 5)]),
-  new TableEntry(71, 90, 'Wolf Pack', [new Tag('combat', 2)]),
-  new TableEntry(91, 100, 'Ancient Dragon', [new Tag('combat', 5), new Tag('legendary', 1)])
+  new TableEntry(1, 40, 'Goblin Band', [
+    new Tag('combat', 1)
+  ]),
+  new TableEntry(41, 70, 'Traveling Merchant', [
+    new Tag('gold', 5)
+  ]),
+  new TableEntry(71, 90, 'Wolf Pack', [
+    new Tag('combat', 2)
+  ]),
+  new TableEntry(91, 100, 'Ancient Dragon', [
+    new Tag('combat', 5),
+    new Tag('legendary', 1)
+  ])
+])
+
+new Table('CombatResolution', [
+  new TableEntry(1, 80, 'Success'),
+  new TableEntry(1, 80, 'Failure')
+])
+
+new Table('TradeGoods', [
+  new TableEntry(1, 80, 'Swap Goods'),
+  new TableEntry(1, 80, 'Place Buy Order')
+])
+
+new Table('MerchantQuest', [
+  new TableEntry(1, 80, 'Defeat Competition'),
+  new TableEntry(1, 80, 'Find Vendors')
 ])
 ```
 
@@ -94,39 +125,50 @@ new Table('Encounters', [
 Events define what happens after rolling a specific entry. This creates the flow of your scenario:
 
 ```typescript
-const scenario = new Scenario('Wilderness Trek', rng)
+const scenario = new Scenario('Wilderness Trek')
 
 // When you encounter a Goblin Band, roll on the Combat Resolution table
-scenario.register(new ScenarioEvent('Encounters', 'Goblin Band', [
+scenario.add(new ScenarioEvent('Encounters', 'Goblin Band', [
+  new Outcome(1, 'CombatResolution')
+]))
+
+scenario.add(new ScenarioEvent('Encounters', 'Wolf Pack', [
   new Outcome(1, 'CombatResolution')
 ]))
 
 // When you meet a Merchant, you might trade or get a quest
-scenario.register(new ScenarioEvent('Encounters', 'Traveling Merchant', [
+scenario.add(new ScenarioEvent('Encounters', 'Traveling Merchant', [
   new Outcome(0.6, 'TradeGoods'),
   new Outcome(0.4, 'MerchantQuest')
 ]))
 ```
 
-### 3. Use Tags to Track State
-
-Tags accumulate as you progress through the scenario. They represent anything you want to track:
-
-```typescript
-// Combat encounters add danger
-new TableEntry(1, 50, 'Orc Ambush', [new Tag('danger', 3)])
-
-// Finding treasure adds wealth
-new TableEntry(51, 100, 'Hidden Cache', [new Tag('treasure', 10)])
-```
-
-### 4. Unlock Outcomes with Tag Thresholds
+### 3. Unlock Outcomes with Tag Thresholds
 
 Tag thresholds let you unlock special outcomes when accumulated values reach certain levels:
 
 ```typescript
-scenario.register(new ScenarioEvent('BossFight', 'Defeat the Dragon', [
-  // If danger >= 10, the party is too injured - bad ending
+new Table('Defeat', [
+  new TableEntry(1, 80, 'You And The Entire Team Died'),
+  new TableEntry(1, 80, 'You Died')
+])
+
+new Table('StandardVictory', [
+  new TableEntry(1, 80, 'Severely Wounded But Standing'),
+  new TableEntry(1, 80, 'Slightly Damaged But Victorious')
+])
+
+new Table('PyrrhicVictory', [
+  new TableEntry(1, 80, 'All But You Are Dead'),
+  new TableEntry(1, 80, 'You Have Lost Limbs')
+])
+
+new Table('TriumphantVictory', [
+  new TableEntry(1, 80, 'Breathlessly Easy Victory'),
+  new TableEntry(1, 80, 'The Dragon Surrendered')
+])
+
+scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
   new Outcome(1, 'PyrrhicVictory', [
     { name: 'danger', minValue: 10 }
   ]),
@@ -137,8 +179,12 @@ scenario.register(new ScenarioEvent('BossFight', 'Defeat the Dragon', [
   ]),
   
   // Otherwise, standard victory
-  new Outcome(1, 'StandardVictory')
+  new Outcome(0.1, 'StandardVictory'),
+
+  new Outcome(0.9, 'Defeat')
 ]))
+
+const { path } = scenario.run()
 ```
 
 **Important**: Tag thresholds are checked **before** likelihood-based outcomes. If a threshold is met, that outcome triggers regardless of probability weights.
@@ -168,37 +214,60 @@ const scenario = new Scenario('The Dragon Heist', rng)
 
 // Act 1: The Hook
 new Table('QuestStart', [
-  new TableEntry(1, 50, 'Tavern Rumor', [new Tag('info', 1)]),
-  new TableEntry(51, 100, 'Desperate Plea', [new Tag('urgency', 2)])
+  new TableEntry(1, 50, 'Tavern Rumor', [
+    new Tag('info', 1)
+  ]),
+  new TableEntry(51, 100, 'Desperate Plea', [
+    new Tag('urgency', 2)
+  ])
 ])
 
 // Act 2: Investigation or Combat approach
-scenario.register(new ScenarioEvent('QuestStart', 'Tavern Rumor', [
+scenario.add(new ScenarioEvent('QuestStart', 'Tavern Rumor', [
   new Outcome(0.7, 'Investigation'),
   new Outcome(0.3, 'DirectConfrontation')
 ]))
 
-scenario.register(new ScenarioEvent('QuestStart', 'Desperate Plea', [
+scenario.add(new ScenarioEvent('QuestStart', 'Desperate Plea', [
   new Outcome(0.9, 'DirectConfrontation'),  // Urgency drives combat
   new Outcome(0.1, 'Investigation')
 ]))
 
 // Investigation accumulates info
 new Table('Investigation', [
-  new TableEntry(1, 100, 'Gather Clues', [new Tag('info', 3)])
+  new TableEntry(1, 100, 'Gather Clues', [
+    new Tag('info', 3)
+  ])
 ])
 
 // Combat accumulates danger
 new Table('DirectConfrontation', [
-  new TableEntry(1, 100, 'Fight Guards', [new Tag('danger', 2)])
+  new TableEntry(1, 100, 'Fight Guards', [
+    new Tag('danger', 2)
+  ])
+])
+
+new Table('StandardVictory', [
+  new TableEntry(1, 80, 'Severely Wounded But Standing'),
+  new TableEntry(81, 100, 'Slightly Damaged But Victorious')
+])
+
+new Table('CleverVictory', [
+  new TableEntry(1, 80, 'You Outwitted Them'),
+  new TableEntry(81, 100, 'They Were Deceived')
+])
+
+new Table('BrutalVictory', [
+  new TableEntry(1, 80, 'Your Enemy Has Been Completely Liquidated'),
+  new TableEntry(81, 100, 'Your Enemy Has Surrendered Out Of Terror')
 ])
 
 // Act 3: Final confrontation - different outcomes based on your path
-scenario.register(new ScenarioEvent('Investigation', 'Gather Clues', [
+scenario.add(new ScenarioEvent('Investigation', 'Gather Clues', [
   new Outcome(1, 'FinalConfrontation')
 ]))
 
-scenario.register(new ScenarioEvent('DirectConfrontation', 'Fight Guards', [
+scenario.add(new ScenarioEvent('DirectConfrontation', 'Fight Guards', [
   new Outcome(1, 'FinalConfrontation')
 ]))
 
@@ -206,7 +275,7 @@ new Table('FinalConfrontation', [
   new TableEntry(1, 100, 'Face the Dragon', [])
 ])
 
-scenario.register(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
+scenario.add(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
   // High info = you know the dragon's weakness
   new Outcome(1, 'CleverVictory', [
     { name: 'info', minValue: 4 }
@@ -221,70 +290,92 @@ scenario.register(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
   new Outcome(1, 'StandardVictory')
 ]))
 
-const path = await scenario.create()
+const { path } = scenario.run()
 ```
 
 ### Dungeon Crawl with Escalating Danger
 
 ```typescript
 // Each room adds danger, unlocking harder encounters
+const rng = new SimpleSeededRNG('room-moving')
+const scenario = new Scenario('The Hallways', rng)
+
 new Table('RoomOne', [
-  new TableEntry(1, 100, 'Trapped Corridor', [new Tag('danger', 1)])
+  new TableEntry(1, 100, 'Trapped Corridor', [
+    new Tag('danger', 1)
+  ])
 ])
 
 new Table('RoomTwo', [
-  new TableEntry(1, 100, 'Guard Post', [new Tag('danger', 2)])
+  new TableEntry(1, 100, 'Guard Post', [
+    new Tag('danger', 2)
+  ])
 ])
 
 new Table('RoomThree', [
-  new TableEntry(1, 100, 'Armory', [new Tag('danger', 2)])
+  new TableEntry(1, 100, 'Armory', [
+    new Tag('danger', 2)
+  ])
 ])
 
 new Table('BossRoom', [
   new TableEntry(1, 100, 'Ancient Guardian', [])
 ])
 
-scenario.register(new ScenarioEvent('RoomOne', 'Trapped Corridor', [
+new Table('HardModeBoss', [
+  new TableEntry(1, 90, 'You Lost', []),
+  new TableEntry(91, 100, 'You won', [])
+])
+
+new Table('NormalBoss', [
+  new TableEntry(1, 40, 'You Lost', []),
+  new TableEntry(41, 100, 'You won', [])
+])
+
+scenario.add(new ScenarioEvent('RoomOne', 'Trapped Corridor', [
   new Outcome(1, 'RoomTwo')
 ]))
 
-scenario.register(new ScenarioEvent('RoomTwo', 'Guard Post', [
+scenario.add(new ScenarioEvent('RoomTwo', 'Guard Post', [
   new Outcome(1, 'RoomThree')
 ]))
 
-scenario.register(new ScenarioEvent('RoomThree', 'Armory', [
+scenario.add(new ScenarioEvent('RoomThree', 'Armory', [
   new Outcome(1, 'BossRoom')
 ]))
 
 // danger accumulates to 5, triggering hard mode boss
-scenario.register(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
+scenario.add(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
   new Outcome(1, 'HardModeBoss', [
     { name: 'danger', minValue: 5 }
   ]),
   new Outcome(1, 'NormalBoss')
 ]))
+
+const { path } = scenario.run()
+
 ```
 
 ### Analyzing Scenario Outcomes
 
 ```typescript
-const path = await scenario.create()
+const { path } = await scenario.run()
 
 // Get the narrative flow
 console.log('=== Quest Path ===')
 path.forEach((step, i) => {
-  console.log(`${i + 1}. ${step.tableName}: ${step.entry.name}`)
+  console.log(`${i + 1}. ${step.tableName}: ${step.entry}`)
 })
 
 // Check final state
 const finalStep = path[path.length - 1]
 console.log('\n=== Final Tags ===')
-finalStep.accumulatedTags.forEach((value, tag) => {
+finalStep.tags.forEach((value, tag) => {
   console.log(`${tag}: ${value}`)
 })
 
-// Determine ending type
-const dangerLevel = finalStep.accumulatedTags.get('danger') || 0
+// Establishing conditional overrides for the ending type
+const dangerLevel = finalStep.tags.get('danger') || 0
 if (dangerLevel >= 10) {
   console.log('Result: Hard-fought victory with casualties')
 } else if (dangerLevel >= 5) {
@@ -296,8 +387,16 @@ if (dangerLevel >= 10) {
 
 ## Testing
 
+To run the test once:
+
 ```bash
 npm test
+```
+
+To automatically run tests when you update codE:
+
+```bash
+npm run dev
 ```
 
 Uses [uvu](https://github.com/lukeed/uvu) for fast, lightweight testing.

@@ -22,7 +22,7 @@ export default class Outcome {
    * Optional array of tag thresholds required to trigger this outcome.
    * Each threshold includes a tag name and its minimum required value.
    */
-  tagThresholds: TagThreshold[]
+  tagThresholds: TagThreshold[] = []
 
   /**
    * Creates a new Outcome instance.
