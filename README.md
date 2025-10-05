@@ -67,6 +67,12 @@ path.forEach(step => {
 
 To see more examples, check out the [Scenario test](tests/scenario.test.ts)
 
+## Installation
+
+```bash
+npm install -S https://github.com/HyperCrowd/scenario-engine
+```
+
 ## How It Works
 
 ### 1. Build Your Tables
@@ -146,8 +152,8 @@ When you call `scenario.create()`, here's what happens:
 3. **Accumulate** any tags from the rolled entry
 4. **Find** the event matching this table + entry combination
 5. **Check** if any outcome's tag thresholds are met
-   - If yes → go to that outcome's table
-   - If no → use weighted probability to select an outcome
+  - If yes → go to that outcome's table
+  - If no → use weighted probability to select an outcome
 6. **Repeat** steps 2-5 until no more events match
 
 The result is a path through your tables, with all accumulated tags at each step.
