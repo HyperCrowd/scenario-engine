@@ -76,8 +76,16 @@ To see more examples, check out the [Scenario test](tests/scenario.test.ts)
 
 ## Installation
 
+In NodeJS:
+
 ```bash
 npm install -S https://github.com/HyperCrowd/scenario-engine
+```
+
+**EXPERIMENTAL**: To use this directly in the browser, simply add this tag to the bottom of the `<body>`:
+
+```html
+<script src="https://raw.githubusercontent.com/HyperCrowd/scenario-engine/master/dist/index.browser.js"></script>
 ```
 
 ## How It Works
