@@ -56,7 +56,7 @@ new Table('ForestEvents', [
 ])
 
 // Create the scenario with seeded RNG
-const scenario = new Scenario('Village Quest', rng)
+const scenario = new Scenario('Village Quest')
 
 // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
 scenario.add(new ScenarioEvent('QuestStart', 'Village Tavern', [
@@ -224,7 +224,7 @@ The result is a path through your tables, with all accumulated tags at each step
 
 ```typescript
 const rng = new SimpleSeededRNG('epic-quest-seed')
-const scenario = new Scenario('The Dragon Heist', rng)
+const scenario = new Scenario('The Dragon Heist')
 
 // Act 1: The Hook
 new Table('QuestStart', [
@@ -312,7 +312,7 @@ const { path } = scenario.run()
 ```typescript
 // Each room adds danger, unlocking harder encounters
 const rng = new SimpleSeededRNG('room-moving')
-const scenario = new Scenario('The Hallways', rng)
+const scenario = new Scenario('The Hallways')
 
 new Table('RoomOne', [
   new TableEntry(1, 100, 'Trapped Corridor', [
