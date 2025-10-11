@@ -27,7 +27,7 @@ export default class Outcome {
    * @param tableName - Name of the table to move to if triggered.
    * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
    */
-  constructor(likelihood: number, tableName: string, tagThresholds: Tag[] = []) {
+  constructor(likelihood: number, tableName: string, tagThresholds: TagModifier | Tag[] = []) {
     this.likelihood = likelihood
     this.tableName = tableName
     this.tagThresholds = tagThresholds

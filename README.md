@@ -68,8 +68,8 @@ scenario.add(new ScenarioEvent('QuestStart', 'Dark Forest', [
 ]))
 
 // Run the scenario
-const { path } = await scenario.run()
-console.log(path)
+const journey = await scenario.run()
+console.log(journey)
 ```
 
 To see more examples, check out the [Scenario test](tests/scenario.test.ts)
@@ -192,8 +192,8 @@ scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
   new Outcome(0.9, 'Defeat')
 ]))
 
-const { path } = scenario.run()
-console.log(path)
+const journey = scenario.run()
+console.log(journey)
 ```
 
 #### How Tags Work
@@ -216,7 +216,7 @@ When you call `scenario.run()`, here's what happens:
   - If all no → outcomes with no tag thresholds are candidates
 6. **Repeat** steps 2-5 until no more events match
 
-The result is a path through your tables, with all accumulated tags at each step.
+The result is a journey through your tables, with all accumulated tags at each step of the path.
 
 ## Advanced Patterns
 
@@ -304,7 +304,7 @@ scenario.add(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
   new Outcome(1, 'StandardVictory')
 ]))
 
-const { path } = scenario.run()
+const journey = scenario.run()
 ```
 
 ### Dungeon Crawl with Escalating Danger
@@ -366,23 +366,73 @@ scenario.add(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
   new Outcome(1, 'NormalBoss')
 ]))
 
-const { path } = scenario.run()
+const journey = scenario.run()
 
 ```
 
 ### Analyzing Scenario Outcomes
 
+You can also use custom functions for the tags
+
 ```typescript
-const { path } = await scenario.run()
+const rng = new SimpleSeededRNG('danger-quest')
+const scenario = new Scenario('The Hallways', rng)
+
+new Table('World', [
+  new TableEntry(1, 33, 'Start', 'The start.', [
+    new Tag('danger', 1)
+  ]),
+  new TableEntry(34, 66, 'Middle', 'The middle.', (journey) => {
+    if (journey.hasTag('danger', { equals: 1 })) {
+      // If the condition matches, the danger tag in the journey will be added by 1
+      return [new Tag('danger', 1)]
+    } else {
+      // If it fails, no tags will be modified
+      return []
+    }
+  }),
+  new TableEntry(67, 100, 'End', 'The end.', () => {
+    if (journey.hasPath({ tableName: 'World', entry: 'Middle' })) {
+      // If the condition matches, the danger tag in the journey will be added by 2
+      return [new Tag('danger', 2)]
+    } else {
+      // If it fails, no tags will be modified
+      return []
+    }
+  })
+])
+
+scenario.add(new ScenarioEvent('World', 'Start', [
+  new Outcome(1, 'World')
+]))
+
+scenario.add(new ScenarioEvent('World', 'Middle', [
+  new Outcome(1, 'World', (journey) => {
+    const result: Tag[] = []
+
+    if (journey.hasTag('danger', { greaterThan: 2 })) {
+      result.push(new Tag('vicious', 1))
+    }
+    return result
+  })
+]))
+
+const journey = scenario.run()
+```
+
+You can analyze the outputs of a scenario.
+
+```typescript
+const journey = await scenario.run()
 
 // Get the narrative flow
 console.log('=== Quest Path ===')
-path.forEach((step, i) => {
+journey.path.forEach((step, i) => {
   console.log(`${i + 1}. ${step.tableName}: ${step.entry}`)
 })
 
 // Check final state
-const finalStep = path[path.length - 1]
+const finalStep = journey.path[path.length - 1]
 console.log('\n=== Final Tags ===')
 finalStep.tags.forEach((value, tag) => {
   console.log(`${tag}: ${value}`)

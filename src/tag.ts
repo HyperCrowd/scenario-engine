@@ -1,6 +1,6 @@
 import Journey, { type JourneyTags } from './journey'
 
-export type TagModifier = (currentTags: Map<string, number>) => Tag[]
+export type TagModifier = (journey: Journey) => Tag[]
 
 /**
  * Represents a tag with a name and a numerical value.
@@ -21,17 +21,17 @@ export default class Tag {
   /**
    * 
    */
-  static unwrap(accumulation: Journey | JourneyTags, tags: TagModifier | Tag[]) {
+  static unwrap(journey: Journey, tags: TagModifier | Tag[]) {
     return tags instanceof Array
       ? tags
-      : tags(accumulation instanceof Map ? accumulation : accumulation.tags)
+      : tags(journey)
   }
 
   /**
    * 
    */
-  apply (accumulation: Journey | JourneyTags, tags: TagModifier | Tag[]) {
-    const target = Tag.unwrap(accumulation, tags)
+  apply (journey: Journey, tags: TagModifier | Tag[]) {
+    const target = Tag.unwrap(journey, tags)
 
     for (const tag of target) {
       if(tag.name === this.name) {

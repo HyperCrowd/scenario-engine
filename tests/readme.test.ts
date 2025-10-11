@@ -392,4 +392,54 @@ scenarioTests('fourth test', () => {
   assert.is(path[4].tags.get('danger'), 5)
 })
 
+scenarioTests.only('fifth test', () => {
+  // @TODO: This needs more testing
+  const rng = new SimpleSeededRNG('danger-quest')
+  const scenario = new Scenario('The Hallways', rng)
+
+  new Table('World', [
+    new TableEntry(1, 33, 'Start', 'The start.', [
+      new Tag('danger', 1)
+    ]),
+    new TableEntry(34, 66, 'Middle', 'The middle.', (journey) => {
+      if (journey.hasTag('danger', { equals: 1 })) {
+        // If the condition matches, the danger tag in the journey will be added by 1
+        return [new Tag('danger', 1)]
+      } else {
+        // If it fails, no tags will be modified
+        return []
+      }
+    }),
+    new TableEntry(67, 100, 'End', 'The end.', () => {
+      if (journey.hasPath({ tableName: 'World', entry: 'Middle' })) {
+        // If the condition matches, the danger tag in the journey will be added by 2
+        return [new Tag('danger', 2)]
+      } else {
+        // If it fails, no tags will be modified
+        return []
+      }
+    })
+  ])
+
+  scenario.add(new ScenarioEvent('World', 'Start', [
+    new Outcome(1, 'World')
+  ]))
+
+  scenario.add(new ScenarioEvent('World', 'Middle', [
+    new Outcome(1, 'World', (journey) => {
+      const result: Tag[] = []
+
+      if (journey.hasTag('danger', { greaterThan: 2 })) {
+        result.push(new Tag('vicious', 1))
+      }
+      return result
+    })
+  ]))
+
+  const journey = scenario.run()
+
+  console.log(journey.tags)
+  console.log(journey.path)
+})
+
 scenarioTests.run()

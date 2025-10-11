@@ -53,7 +53,7 @@ export default class Scenario {
     }
 
     if (entry.tags && entry.tags.length > 0) {
-      const tags = Tag.unwrap(journey.tags, entry.tags)
+      const tags = Tag.unwrap(journey, entry.tags)
       for (const tag of tags) {
         journey.addTag(tag)
       }
@@ -185,7 +185,7 @@ export default class Scenario {
   private addPathEvent (tableName: string, journey: Journey = this.journey) {
     const table = this.getTable(tableName)
     const { roll, entry } = this.getEntry(table, journey)
-    return journey.addPathEvent(roll, tableName, entry.name)
+    return journey.addPathEvent(roll, tableName, entry)
   }
 
   /**
@@ -204,7 +204,7 @@ export default class Scenario {
 
       if (existingOutcome) {
         // The outcome within the event already exists
-        const thresholds = Tag.unwrap(new Map(), outcome.tagThresholds)
+        const thresholds = Tag.unwrap(journey, outcome.tagThresholds)
         for (const threshold of thresholds) {
           threshold.apply(journey, existingOutcome.tagThresholds)
         }
