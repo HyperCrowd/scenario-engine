@@ -1,7 +1,4 @@
-export interface TagThreshold {
-  name: string
-  minValue: number
-}
+import Tag, { TagModifier } from './tag'
 
 /**
  * Represents an outcome from an event, pointing to the next table
@@ -22,7 +19,7 @@ export default class Outcome {
    * Optional array of tag thresholds required to trigger this outcome.
    * Each threshold includes a tag name and its minimum required value.
    */
-  tagThresholds: TagThreshold[] = []
+  tagThresholds: TagModifier | Tag[] = []
 
   /**
    * Creates a new Outcome instance.
@@ -30,7 +27,7 @@ export default class Outcome {
    * @param tableName - Name of the table to move to if triggered.
    * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
    */
-  constructor(likelihood: number, tableName: string, tagThresholds: TagThreshold[] = []) {
+  constructor(likelihood: number, tableName: string, tagThresholds: Tag[] = []) {
     this.likelihood = likelihood
     this.tableName = tableName
     this.tagThresholds = tagThresholds

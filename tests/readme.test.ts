@@ -45,28 +45,28 @@ scenarioTests('first test', () => {
   const rng = getRng(0.5, 52)
 
   new Table('QuestStart', [
-    new TableEntry(1, 60, 'Village Tavern', [
+    new TableEntry(1, 60, 'Village Tavern', '', [
       new Tag('safe', 1)
     ]),
-    new TableEntry(61, 100, 'Dark Forest', [
+    new TableEntry(61, 100, 'Dark Forest', '', [
       new Tag('danger', 2)
     ])
   ])
 
   new Table('TavernEvents', [
-    new TableEntry(1, 50, 'Meet Friendly NPC', [
+    new TableEntry(1, 50, 'Meet Friendly NPC', '', [
       new Tag('safe', 1)
     ]),
-    new TableEntry(51, 100, 'Overhear Quest Hook', [
+    new TableEntry(51, 100, 'Overhear Quest Hook', '', [
       new Tag('intrigue', 1)
     ])
   ])
 
   new Table('ForestEvents', [
-    new TableEntry(1, 70, 'Goblin Ambush', [
+    new TableEntry(1, 70, 'Goblin Ambush', '', [
       new Tag('danger', 2)
     ]),
-    new TableEntry(71, 100, 'Ancient Ruins', [
+    new TableEntry(71, 100, 'Ancient Ruins', '', [
       new Tag('treasure', 1)
     ])
   ])
@@ -102,16 +102,16 @@ scenarioTests('first test', () => {
 
 scenarioTests('second test', () => {
   new Table('Encounters', [
-    new TableEntry(1, 40, 'Goblin Band', [
+    new TableEntry(1, 40, 'Goblin Band', '', [
       new Tag('combat', 1)
     ]),
-    new TableEntry(41, 60, 'Traveling Merchant', [
+    new TableEntry(41, 60, 'Traveling Merchant', '', [
       new Tag('gold', 5)
     ]),
-    new TableEntry(61, 70, 'Wolf Pack', [
+    new TableEntry(61, 70, 'Wolf Pack', '', [
       new Tag('combat', 2)
     ]),
-    new TableEntry(71, 100, 'Ancient Dragon', [new 
+    new TableEntry(71, 100, 'Ancient Dragon', '', [new 
       Tag('combat', 5),
       new Tag('legendary', 1)
     ])
@@ -171,12 +171,12 @@ scenarioTests('second test', () => {
 
   scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
     new Outcome(1, 'PyrrhicVictory', [
-      { name: 'danger', minValue: 10 }
+      new Tag('danger', 10)
     ]),
     
     // If treasure >= 15, they're wealthy enough to hire help - good ending
     new Outcome(1, 'TriumphantVictory', [
-      { name: 'treasure', minValue: 15 }
+      new Tag('treasure', 15)
     ]),
     
     // Otherwise, standard victory
@@ -206,10 +206,10 @@ scenarioTests('third test', () => {
 
   // Act 1: The Hook
   new Table('QuestStart', [
-    new TableEntry(1, 50, 'Tavern Rumor', [
+    new TableEntry(1, 50, 'Tavern Rumor', '', [
       new Tag('info', 1)
     ]),
-    new TableEntry(51, 100, 'Desperate Plea', [
+    new TableEntry(51, 100, 'Desperate Plea', '', [
       new Tag('urgency', 2)
     ])
   ])
@@ -227,14 +227,14 @@ scenarioTests('third test', () => {
 
   // Investigation accumulates info
   new Table('Investigation', [
-    new TableEntry(1, 100, 'Gather Clues', [
+    new TableEntry(1, 100, 'Gather Clues', '', [
       new Tag('info', 3)
     ])
   ])
 
   // Combat accumulates danger
   new Table('DirectConfrontation', [
-    new TableEntry(1, 100, 'Fight Guards', [
+    new TableEntry(1, 100, 'Fight Guards', '', [
       new Tag('danger', 2)
     ])
   ])
@@ -264,18 +264,18 @@ scenarioTests('third test', () => {
   ]))
 
   new Table('FinalConfrontation', [
-    new TableEntry(1, 100, 'Face the Dragon', [])
+    new TableEntry(1, 100, 'Face the Dragon', '', [])
   ])
 
   scenario.add(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
     // High info = you know the dragon's weakness
     new Outcome(1, 'CleverVictory', [
-      { name: 'info', minValue: 4 }
+      new Tag('info', 4)
     ]),
     
     // High danger = injured but victorious
     new Outcome(1, 'BrutalVictory', [
-      { name: 'danger', minValue: 4 }
+      new Tag('danger', 4)
     ]),
     
     // Balanced approach
@@ -313,35 +313,35 @@ scenarioTests('fourth test', () => {
   const scenario = new Scenario('The Hallways', rng)
 
   new Table('RoomOne', [
-    new TableEntry(1, 100, 'Trapped Corridor', [
+    new TableEntry(1, 100, 'Trapped Corridor', '', [
       new Tag('danger', 1)
     ])
   ])
 
   new Table('RoomTwo', [
-    new TableEntry(1, 100, 'Guard Post', [
+    new TableEntry(1, 100, 'Guard Post', '', [
       new Tag('danger', 2)
     ])
   ])
 
   new Table('RoomThree', [
-    new TableEntry(1, 100, 'Armory', [
+    new TableEntry(1, 100, 'Armory', '', [
       new Tag('danger', 2)
     ])
   ])
 
   new Table('BossRoom', [
-    new TableEntry(1, 100, 'Ancient Guardian', [])
+    new TableEntry(1, 100, 'Ancient Guardian', '', [])
   ])
 
   new Table('HardModeBoss', [
-    new TableEntry(1, 90, 'You Lost', []),
-    new TableEntry(91, 100, 'You won', [])
+    new TableEntry(1, 90, 'You Lost', '', []),
+    new TableEntry(91, 100, 'You won', '', [])
   ])
 
   new Table('NormalBoss', [
-    new TableEntry(1, 40, 'You Lost', []),
-    new TableEntry(41, 100, 'You won', [])
+    new TableEntry(1, 40, 'You Lost', '', []),
+    new TableEntry(41, 100, 'You won', '', [])
   ])
 
   scenario.add(new ScenarioEvent('RoomOne', 'Trapped Corridor', [
@@ -359,7 +359,7 @@ scenarioTests('fourth test', () => {
   // danger accumulates to 5, triggering hard mode boss
   scenario.add(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
     new Outcome(1, 'HardModeBoss', [
-      { name: 'danger', minValue: 5 }
+      new Tag('danger', 5)
     ]),
     new Outcome(1, 'NormalBoss')
   ]))

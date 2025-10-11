@@ -29,28 +29,28 @@ import { Scenario, ScenarioEvent, Outcome, Table, TableEntry, Tag, SimpleSeededR
 
 // Define your tables (like in a DM's guide)
 new Table('QuestStart', [
-  new TableEntry(1, 60, 'Village Tavern', [
+  new TableEntry(1, 60, 'Village Tavern', 'You have entered the tavern.', [
     new Tag('safe', 1)
   ]),
-  new TableEntry(61, 100, 'Dark Forest', [
+  new TableEntry(61, 100, 'Dark Forest', 'You have entered dark forest.', [
     new Tag('danger', 2)
   ])
 ])
 
 new Table('TavernEvents', [
-  new TableEntry(1, 50, 'Meet Friendly NPC', [
+  new TableEntry(1, 50, 'Meet Friendly NPC', 'A friendly local chats with you.', [
     new Tag('safe', 1)
   ]),
-  new TableEntry(51, 100, 'Overhear Quest Hook', [new 
+  new TableEntry(51, 100, 'Overhear Quest Hook', 'You hear gossip.', [new 
     Tag('intrigue', 1)
   ])
 ])
 
 new Table('ForestEvents', [
-  new TableEntry(1, 70, 'Goblin Ambush', [new 
+  new TableEntry(1, 70, 'Goblin Ambush', 'A pile of goblins begins to stab you.', [new 
     Tag('danger', 2)
   ]),
-  new TableEntry(71, 100, 'Ancient Ruins', [
+  new TableEntry(71, 100, 'Ancient Ruins', 'This ruin is brought to you by BlackRock.', [
     new Tag('treasure', 1)
   ])
 ])
@@ -97,34 +97,34 @@ Each table represents a set of possible outcomes, just like in the DMG. Tags acc
 ```typescript
 // A wandering monster table
 new Table('Encounters', [
-  new TableEntry(1, 40, 'Goblin Band', [
+  new TableEntry(1, 40, 'Goblin Band', 'You have found a goblin band.', [
     new Tag('combat', 1)
   ]),
-  new TableEntry(41, 70, 'Traveling Merchant', [
+  new TableEntry(41, 70, 'Traveling Merchant', 'You are about to get swindled or find a great a deal.', [
     new Tag('gold', 5)
   ]),
-  new TableEntry(71, 90, 'Wolf Pack', [
+  new TableEntry(71, 90, 'Wolf Pack', 'Woof.', [
     new Tag('combat', 2)
   ]),
-  new TableEntry(91, 100, 'Ancient Dragon', [
+  new TableEntry(91, 100, 'Ancient Dragon', 'An old dragon has caught wind of you.', [
     new Tag('combat', 5),
     new Tag('legendary', 1)
   ])
 ])
 
 new Table('CombatResolution', [
-  new TableEntry(1, 80, 'Success'),
-  new TableEntry(1, 80, 'Failure')
+  new TableEntry(1, 80, 'Success', 'You beat that ass.'),
+  new TableEntry(1, 80, 'Failure', 'It beat your ass.')
 ])
 
 new Table('TradeGoods', [
-  new TableEntry(1, 80, 'Swap Goods'),
-  new TableEntry(1, 80, 'Place Buy Order')
+  new TableEntry(1, 80, 'Swap Goods', 'You swap goods.'),
+  new TableEntry(1, 80, 'Place Buy Order', 'You promise to buy something later.')
 ])
 
 new Table('MerchantQuest', [
-  new TableEntry(1, 80, 'Defeat Competition'),
-  new TableEntry(1, 80, 'Find Vendors')
+  new TableEntry(1, 80, 'Defeat Competition', 'The merchant wants you to fight his creditor.'),
+  new TableEntry(1, 80, 'Find Vendors', 'The merchant wants you to locate his competition.')
 ])
 ```
 
@@ -178,12 +178,12 @@ new Table('TriumphantVictory', [
 
 scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
   new Outcome(1, 'PyrrhicVictory', [
-    { name: 'danger', minValue: 10 }
+    new Tag('danger', 10 )
   ]),
   
   // If treasure >= 15, they're wealthy enough to hire help - good ending
   new Outcome(1, 'TriumphantVictory', [
-    { name: 'treasure', minValue: 15 }
+    new Tag('treasure', 15)
   ]),
   
   // Otherwise, standard victory
@@ -228,10 +228,10 @@ const scenario = new Scenario('The Dragon Heist', rng)
 
 // Act 1: The Hook
 new Table('QuestStart', [
-  new TableEntry(1, 50, 'Tavern Rumor', [
+  new TableEntry(1, 50, 'Tavern Rumor', 'You hear a rumor.', [
     new Tag('info', 1)
   ]),
-  new TableEntry(51, 100, 'Desperate Plea', [
+  new TableEntry(51, 100, 'Desperate Plea', 'A person is on their knees, begging for help.', [
     new Tag('urgency', 2)
   ])
 ])
@@ -249,14 +249,14 @@ scenario.add(new ScenarioEvent('QuestStart', 'Desperate Plea', [
 
 // Investigation accumulates info
 new Table('Investigation', [
-  new TableEntry(1, 100, 'Gather Clues', [
+  new TableEntry(1, 100, 'Gather Clues', 'You gathered a clue.', [
     new Tag('info', 3)
   ])
 ])
 
 // Combat accumulates danger
 new Table('DirectConfrontation', [
-  new TableEntry(1, 100, 'Fight Guards', [
+  new TableEntry(1, 100, 'Fight Guards', 'You grabbed a cop\'s gun.', [
     new Tag('danger', 2)
   ])
 ])
@@ -286,18 +286,18 @@ scenario.add(new ScenarioEvent('DirectConfrontation', 'Fight Guards', [
 ]))
 
 new Table('FinalConfrontation', [
-  new TableEntry(1, 100, 'Face the Dragon', [])
+  new TableEntry(1, 100, 'Face the Dragon', 'You about to fight a dragon.  Good luck.', [])
 ])
 
 scenario.add(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
   // High info = you know the dragon's weakness
   new Outcome(1, 'CleverVictory', [
-    { name: 'info', minValue: 4 }
+    new Tag('info', 4)
   ]),
   
   // High danger = injured but victorious
   new Outcome(1, 'BrutalVictory', [
-    { name: 'danger', minValue: 4 }
+    new Tag('danger', 4)
   ]),
   
   // Balanced approach
@@ -315,25 +315,25 @@ const rng = new SimpleSeededRNG('room-moving')
 const scenario = new Scenario('The Hallways', rng)
 
 new Table('RoomOne', [
-  new TableEntry(1, 100, 'Trapped Corridor', [
+  new TableEntry(1, 100, 'Trapped Corridor', 'You are in a trapped corridor.', [
     new Tag('danger', 1)
   ])
 ])
 
 new Table('RoomTwo', [
-  new TableEntry(1, 100, 'Guard Post', [
+  new TableEntry(1, 100, 'Guard Post', 'You approach a guard post.', [
     new Tag('danger', 2)
   ])
 ])
 
 new Table('RoomThree', [
-  new TableEntry(1, 100, 'Armory', [
+  new TableEntry(1, 100, 'Armory', 'You are in the armory.', [
     new Tag('danger', 2)
   ])
 ])
 
 new Table('BossRoom', [
-  new TableEntry(1, 100, 'Ancient Guardian', [])
+  new TableEntry(1, 100, 'Ancient Guardian', 'You have found the ancient guardian.', [])
 ])
 
 new Table('HardModeBoss', [
@@ -361,7 +361,7 @@ scenario.add(new ScenarioEvent('RoomThree', 'Armory', [
 // danger accumulates to 5, triggering hard mode boss
 scenario.add(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
   new Outcome(1, 'HardModeBoss', [
-    { name: 'danger', minValue: 5 }
+    new Tag('danger', 5)
   ]),
   new Outcome(1, 'NormalBoss')
 ]))

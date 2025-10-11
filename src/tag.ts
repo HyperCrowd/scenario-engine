@@ -1,3 +1,5 @@
+import Journey, { type JourneyTags } from './journey'
+
 /**
  * Represents a tag with a name and a numerical value.
  */
@@ -13,4 +15,46 @@ export default class Tag {
     this.name = name;
     this.value = value;
   }
+
+  /**
+   * 
+   */
+  static unwrap(accumulation: Journey | JourneyTags, tags: TagModifier | Tag[]) {
+    return tags instanceof Array
+      ? tags
+      : tags(accumulation instanceof Map ? accumulation : accumulation.tags)
+  }
+
+  /**
+   * 
+   */
+  apply (accumulation: Journey | JourneyTags, tags: TagModifier | Tag[]) {
+    const target = Tag.unwrap(accumulation, tags)
+
+    for (const tag of target) {
+      if(tag.name === this.name) {
+        tag.value += this.value
+      }
+    }
+
+    return target
+  }
+
+  /**
+   * 
+   */
+  update (tags: Tag[]) {
+    let didUpdate = false
+
+    tags.forEach(t => {
+      if(t.name === this.name) {
+        this.value += t.value
+        didUpdate = true
+      }
+    })
+
+    return didUpdate
+  }
 }
+
+export type TagModifier = (currentTags: Map<string, number>) => Tag[]

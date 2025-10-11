@@ -1,18 +1,10 @@
+import Tag from './tag'
 import TableManager from './tableManager'
-import TableEntry from './tableEntry'
 import ScenarioEvent from './scenarioEvent'
 import Outcome from './outcome'
 import SimpleSeededRNG from './rng'
 import Table from './table'
-
-type Tags = Map<string, number>
-
-type PathEvent = {
-  tableName: string
-  entry: string
-  roll: number,
-  tags: Map<string, number>
-}
+import Journey, { type JourneyTags } from './journey'
 
 /**
  * Represents a Scenario which chains table entries through Events and Outcomes.
@@ -50,7 +42,7 @@ export default class Scenario {
   /**
    * Gets a Table Entry
    */
-  private getEntry (table: Table, accumulatedTags: Map<string, number>) {
+  private getEntry (table: Table, journey: Journey) {
     const roll = this.rng.randomInt(0, table.getMaxValue()) + 1
     const entry = table.getEntry(roll)
 
@@ -59,8 +51,9 @@ export default class Scenario {
     }
 
     if (entry.tags && entry.tags.length > 0) {
-      for (const tag of entry.tags) {
-        accumulatedTags.set(tag.name, (accumulatedTags.get(tag.name) || 0) + tag.value)
+      const tags = Tag.unwrap(journey.tags, entry.tags)
+      for (const tag of tags) {
+        journey.addTag(tag)
       }
     }
 
@@ -91,7 +84,7 @@ export default class Scenario {
     return outcome
   }
 
-  private getPossibleOutcomes (scenarioEvent: ScenarioEvent, accumulatedTags: Tags) {
+  private getPossibleOutcomes (scenarioEvent: ScenarioEvent, journey: Journey) {
     const hasThresholds = scenarioEvent.outcomes.filter(outcome => {
       return outcome.tagThresholds && outcome.tagThresholds.length > 0
     }).length > 0
@@ -103,9 +96,7 @@ export default class Scenario {
           return false
         }
 
-        return outcome.tagThresholds.every(({ name, minValue }) => {
-          return (accumulatedTags.get(name) || 0) >= minValue
-        })
+        return journey.isActivated(outcome.tagThresholds)
       } else {
         // This scenario event has no thresholds, use them
         return outcome
@@ -126,14 +117,14 @@ export default class Scenario {
   /**
    * Gets the next outcome of a Scenario Event
    */
-  private getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: Tags}): Outcome | undefined {
+  private getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: JourneyTags}): Outcome | undefined {
     let outcome: Outcome | undefined
 
     if (criteria !== undefined) {
-      const accumulatedTags = criteria.byTags ?? new Map<string, number>()
-      const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, accumulatedTags)
+      const journey = new Journey(criteria.byTags ?? new Map<string, number>())
+      const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, journey)
 
-      if (accumulatedTags.size > 0) {
+      if (journey.hasTags()) {
         /**
          * Find outcome by tags
          **/
@@ -189,16 +180,10 @@ export default class Scenario {
    * @param currentEvent 
    * @param accumulatedTags 
    */
-  private getPathEvent (tableName: string, accumulatedTags: Map<string, number>) {
+  private addPathEvent (tableName: string, journey: Journey) {
     const table = this.getTable(tableName)
-    const { roll, entry } = this.getEntry(table, accumulatedTags)
-
-    return {
-      roll,
-      tableName: table.name,
-      entry: entry.name,
-      tags: new Map(accumulatedTags)
-    }
+    const { roll, entry } = this.getEntry(table, journey)
+    return journey.addPathEvent(roll, tableName, entry.name)
   }
 
   /**
@@ -217,13 +202,9 @@ export default class Scenario {
 
       if (existingOutcome) {
         // The outcome within the event already exists
-        for (const threshold of outcome.tagThresholds) {
-          existingOutcome.tagThresholds.forEach(t => {
-            if(t.name === threshold.name) {
-              // Add thresholds
-              t.minValue += threshold.minValue
-            }
-          })
+        const thresholds = Tag.unwrap(new Map(), outcome.tagThresholds)
+        for (const threshold of thresholds) {
+          threshold.apply(existingOutcome.tagThresholds)
         }
       } else {
         // The outcome does not exist, add it
@@ -254,7 +235,7 @@ export default class Scenario {
    * Starts running the scenario from the first registered event.
    * @returns Array of objects representing the path of entries chosen during scenario execution
    */
-  run(accumulatedTags: Tags = new Map<string, number>(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): { path: PathEvent[], tags: Tags } {
+  run(journey: Journey = new Journey(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): { path: PathEvent[], tags: Tags } {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
@@ -282,7 +263,7 @@ export default class Scenario {
       if (nextEvents.length > 0) {
         // Go through known scenario events involving this table
         for (const nextEvent of nextEvents) {
-          this.run(accumulatedTags, nextEvent, path)
+          this.run(journey, nextEvent, path)
         }
       } else {
         // We are done

@@ -1,4 +1,4 @@
-import Tag from './tag.ts'
+import Tag, { TagModifier } from './tag.ts'
 
 /**
  * Represents an entry within a Table, defined by a numeric range, name, and optional tags.
@@ -7,7 +7,8 @@ export default class TableEntry {
   start: number
   end: number
   name: string
-  tags: Tag[]
+  description: string
+  tags: TagModifier | Tag[]
 
   /**
    * @param start - The starting number of the range (inclusive).
@@ -15,10 +16,11 @@ export default class TableEntry {
    * @param name - The name of the entry.
    * @param tags - Optional array of tags associated with this entry.
    */
-  constructor(start: number, end: number, name: string, tags: Tag[] = []) {
+  constructor(start: number, end: number, name: string, description: string = name, tags: Tag[] = []) {
     this.start = start
     this.end = end
     this.name = name
+    this.description = description
     this.tags = tags
   }
 
