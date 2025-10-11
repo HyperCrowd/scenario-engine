@@ -9,7 +9,6 @@ export type PathEvent = {
   tags: Map<string, number>
 }
 
-
 /**
  * 
  */

@@ -4,7 +4,7 @@ import ScenarioEvent from './scenarioEvent'
 import Outcome from './outcome'
 import SimpleSeededRNG from './rng'
 import Table from './table'
-import Journey, { type JourneyTags } from './journey'
+import Journey, { type JourneyTags, type PathEvent } from './journey'
 
 /**
  * Represents a Scenario which chains table entries through Events and Outcomes.
@@ -16,14 +16,16 @@ export default class Scenario {
   rng: SimpleSeededRNG
   /** Registered events in this scenario */
   events: ScenarioEvent[]
+  journey: Journey
 
   /**
    * Constructor
    */
-  constructor(name: string, rng: SimpleSeededRNG = new SimpleSeededRNG()) {
+  constructor(name: string, rng: SimpleSeededRNG = new SimpleSeededRNG(), journey: Journey = new Journey()) {
     this.name = name
     this.rng = rng
     this.events = []
+    this.journey = journey
   }
 
   /**
@@ -42,7 +44,7 @@ export default class Scenario {
   /**
    * Gets a Table Entry
    */
-  private getEntry (table: Table, journey: Journey) {
+  private getEntry (table: Table, journey: Journey = this.journey) {
     const roll = this.rng.randomInt(0, table.getMaxValue()) + 1
     const entry = table.getEntry(roll)
 
@@ -84,7 +86,10 @@ export default class Scenario {
     return outcome
   }
 
-  private getPossibleOutcomes (scenarioEvent: ScenarioEvent, journey: Journey) {
+  /**
+   * Gets possible outcomes based on how the Journey and the Scenario Event intersect
+   */
+  private getPossibleOutcomes (scenarioEvent: ScenarioEvent, journey: Journey = this.journey) {
     const hasThresholds = scenarioEvent.outcomes.filter(outcome => {
       return outcome.tagThresholds && outcome.tagThresholds.length > 0
     }).length > 0
@@ -175,28 +180,25 @@ export default class Scenario {
   }
 
   /**
-   * 
-   * @param path 
-   * @param currentEvent 
-   * @param accumulatedTags 
+   * Adds a Path Event to the Journey
    */
-  private addPathEvent (tableName: string, journey: Journey) {
+  private addPathEvent (tableName: string, journey: Journey = this.journey) {
     const table = this.getTable(tableName)
     const { roll, entry } = this.getEntry(table, journey)
     return journey.addPathEvent(roll, tableName, entry.name)
   }
 
   /**
-   * 
+   * Gets an event by Table Entry
    */
   getEvent(tableName: string, entryName: string) {
     return this.events.find(e => e.tableName === tableName && e.entryName === entryName)
   }
 
   /**
-   * 
+   * Merges outcomes into a Scenario Event
    */
-  mergeOutcomes (event: ScenarioEvent, outcomes: Outcome[], addIfMissing = true) {
+  mergeOutcomes (event: ScenarioEvent, outcomes: Outcome[], addIfMissing = true, journey: Journey = this.journey) {
     for (const outcome of event.outcomes) {
       const existingOutcome = outcomes.find(o => outcome.tableName === o.tableName && outcome.likelihood === o.likelihood)
 
@@ -204,7 +206,7 @@ export default class Scenario {
         // The outcome within the event already exists
         const thresholds = Tag.unwrap(new Map(), outcome.tagThresholds)
         for (const threshold of thresholds) {
-          threshold.apply(existingOutcome.tagThresholds)
+          threshold.apply(journey, existingOutcome.tagThresholds)
         }
       } else {
         // The outcome does not exist, add it
@@ -233,14 +235,13 @@ export default class Scenario {
 
   /**
    * Starts running the scenario from the first registered event.
-   * @returns Array of objects representing the path of entries chosen during scenario execution
    */
-  run(journey: Journey = new Journey(), currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): { path: PathEvent[], tags: Tags } {
+  run(journey: Journey = this.journey, currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): Journey {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
 
-    const pathEvent = this.getPathEvent(currentEvent.tableName, accumulatedTags)
+    const pathEvent = this.addPathEvent(currentEvent.tableName, journey)
 
     path.push(pathEvent)
 
@@ -248,11 +249,11 @@ export default class Scenario {
 
     if (nextEvent === undefined) {
       // path.push(this.getPathEvent(currentEvent.tableName, accumulatedTags))
-      return { path, tags: accumulatedTags }
+      return journey
     }
 
     const outcome = this.getNextOutcome(nextEvent, {
-      byTags: accumulatedTags,
+      byTags: journey.tags,
       randomly: true
     })
 
@@ -267,15 +268,13 @@ export default class Scenario {
         }
       } else {
         // We are done
-        path.push(this.getPathEvent(outcome.tableName, accumulatedTags))
+        const pathEvent = this.addPathEvent(outcome.tableName, journey)
+        path.push(pathEvent)
       }
 
       
     }
 
-    return {
-      path,
-      tags: accumulatedTags
-    }
+    return journey
   }
 }

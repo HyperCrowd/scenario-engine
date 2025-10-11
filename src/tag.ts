@@ -1,5 +1,7 @@
 import Journey, { type JourneyTags } from './journey'
 
+export type TagModifier = (currentTags: Map<string, number>) => Tag[]
+
 /**
  * Represents a tag with a name and a numerical value.
  */
@@ -56,5 +58,3 @@ export default class Tag {
     return didUpdate
   }
 }
-
-export type TagModifier = (currentTags: Map<string, number>) => Tag[]
