@@ -42,14 +42,14 @@ function generateTag(tagString: string) {
 /**
  * 
  */
-function generateTableEntry(roll: string, name: string, tags: Tag[]) {
+function generateTableEntry(roll: string, name: string, description: string = '', tags: Tag[]) {
   let [ startText, endText ] = roll.split('-')
 
   if (endText === undefined) {
     endText = startText
   }
 
-  const result = new TableEntry(Number(startText), Number(endText), name, tags)
+  const result = new TableEntry(Number(startText), Number(endText), name, description, tags)
   return result
 }
 
@@ -135,7 +135,7 @@ export async function generate (filePath: string) {
       if (
         line.indexOf('|-') > -1 ||
         line.indexOf('-|') > -1 ||
-        line.toLowerCase() === '|roll|outcome|tags|requires|' ||
+        line.toLowerCase() === '|roll|outcome|tags|requires|description|' ||
         line.toLowerCase() === '|from|entry|go to|likelihood|requires|'
       ) {
         // Header, ignore
@@ -143,14 +143,14 @@ export async function generate (filePath: string) {
       } else {
         // Piped definitions
         if (isTableDefinition) {
-          const [, roll, entry, tagString, requirementString] = line.split('|')
+          const [, roll, entry, tagString, requirementString, description] = line.split('|')
           const tags = generateTag(tagString)
           requirements.push({
             table: isTableDefinition,
             entry,
             requirements: requirementString
           })
-          const tableEntry = generateTableEntry(roll, entry, tags)
+          const tableEntry = generateTableEntry(roll, entry, description, tags)
           tables[isTableDefinition].push(tableEntry)
         } else if (isScenarioDefinition) {
           const scenario = scenarios[isScenarioDefinition]

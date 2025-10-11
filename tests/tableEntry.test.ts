@@ -7,7 +7,7 @@ const test = suite('Table')
 
 test('TableEntry constructor sets values correctly', () => {
   const tags = [new Tag('magic', 3)]
-  const entry = new TableEntry(10, 20, 'Treasure Chest', tags)
+  const entry = new TableEntry(10, 20, 'Treasure Chest', '', tags)
 
   assert.is(entry.start, 10)
   assert.is(entry.end, 20)
