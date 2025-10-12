@@ -286,7 +286,7 @@ scenario.add('DirectConfrontation', 'Fight Guards', [
 ])
 
 new Table('FinalConfrontation', [
-  new TableEntry(1, 100, 'Face the Dragon', 'You about to fight a dragon.  Good luck.', [])
+  new TableEntry(1, 100, 'Face the Dragon', 'You about to fight a dragon.  Good luck.')
 ])
 
 scenario.add('FinalConfrontation', 'Face the Dragon', [
@@ -333,17 +333,17 @@ new Table('RoomThree', [
 ])
 
 new Table('BossRoom', [
-  new TableEntry(1, 100, 'Ancient Guardian', 'You have found the ancient guardian.', [])
+  new TableEntry(1, 100, 'Ancient Guardian', 'You have found the ancient guardian.')
 ])
 
 new Table('HardModeBoss', [
-  new TableEntry(1, 90, 'You Lost', []),
-  new TableEntry(91, 100, 'You won', [])
+  new TableEntry(1, 90, 'You Lost'),
+  new TableEntry(91, 100, 'You won')
 ])
 
 new Table('NormalBoss', [
-  new TableEntry(1, 40, 'You Lost', []),
-  new TableEntry(41, 100, 'You won', [])
+  new TableEntry(1, 40, 'You Lost'),
+  new TableEntry(41, 100, 'You won')
 ])
 
 scenario.add('RoomOne', 'Trapped Corridor', [
