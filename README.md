@@ -29,43 +29,43 @@ import { Scenario, ScenarioEvent, Outcome, Table, TableEntry, Tag, SimpleSeededR
 
 // Define your tables (like in a DM's guide)
 new Table('QuestStart', [
-  new TableEntry(1, 60, 'Village Tavern', 'You have entered the tavern.', [
-    new Tag('safe', 1)
-  ]),
-  new TableEntry(61, 100, 'Dark Forest', 'You have entered dark forest.', [
-    new Tag('danger', 2)
-  ])
+  new TableEntry(1, 60, 'Village Tavern', 'You have entered the tavern.', {
+    safe: 1
+  }),
+  new TableEntry(61, 100, 'Dark Forest', 'You have entered dark forest.', {
+    danger: 2
+  })
 ])
 
 new Table('TavernEvents', [
-  new TableEntry(1, 50, 'Meet Friendly NPC', 'A friendly local chats with you.', [
-    new Tag('safe', 1)
-  ]),
-  new TableEntry(51, 100, 'Overhear Quest Hook', 'You hear gossip.', [new 
-    Tag('intrigue', 1)
-  ])
+  new TableEntry(1, 50, 'Meet Friendly NPC', 'A friendly local chats with you.', {
+    safe: 1
+  }),
+  new TableEntry(51, 100, 'Overhear Quest Hook', 'You hear gossip.', {
+    intrigue: 1
+  })
 ])
 
 new Table('ForestEvents', [
-  new TableEntry(1, 70, 'Goblin Ambush', 'A pile of goblins begins to stab you.', [new 
-    Tag('danger', 2)
-  ]),
-  new TableEntry(71, 100, 'Ancient Ruins', 'This ruin is brought to you by BlackRock.', [
-    new Tag('treasure', 1)
-  ])
+  new TableEntry(1, 70, 'Goblin Ambush', 'A pile of goblins begins to stab you.', {
+    danger: 2
+  }),
+  new TableEntry(71, 100, 'Ancient Ruins', 'This ruin is brought to you by BlackRock.', {
+    treasure: 1
+  })
 ])
 
 // Create the scenario with seeded RNG
 const scenario = new Scenario('Village Quest')
 
 // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
-scenario.add('QuestStart', 'Village Tavern', [
-  new Outcome(1, 'TavernEvents')
-])
+scenario.add('QuestStart', 'Village Tavern', {
+  TavernEvents: 1
+})
 
-scenario.add('QuestStart', 'Dark Forest', [
-  new Outcome(1, 'ForestEvents')
-])
+scenario.add('QuestStart', 'Dark Forest', {
+  ForestEvents: 1
+})
 
 // Run the scenario
 const journey = await scenario.run()
@@ -97,19 +97,19 @@ Each table represents a set of possible outcomes, just like in the DMG. Tags acc
 ```typescript
 // A wandering monster table
 new Table('Encounters', [
-  new TableEntry(1, 40, 'Goblin Band', 'You have found a goblin band.', [
-    new Tag('combat', 1)
-  ]),
-  new TableEntry(41, 70, 'Traveling Merchant', 'You are about to get swindled or find a great a deal.', [
-    new Tag('gold', 5)
-  ]),
-  new TableEntry(71, 90, 'Wolf Pack', 'Woof.', [
-    new Tag('combat', 2)
-  ]),
-  new TableEntry(91, 100, 'Ancient Dragon', 'An old dragon has caught wind of you.', [
-    new Tag('combat', 5),
-    new Tag('legendary', 1)
-  ])
+  new TableEntry(1, 40, 'Goblin Band', 'You have found a goblin band.', {
+    combat: 1)
+  }),
+  new TableEntry(41, 70, 'Traveling Merchant', 'You are about to get swindled or find a great a deal.', {
+    gold: 5
+  }),
+  new TableEntry(71, 90, 'Wolf Pack', 'Woof.', {
+    combat: 2
+  }),
+  new TableEntry(91, 100, 'Ancient Dragon', 'An old dragon has caught wind of you.', {
+    combat: 5,
+    legendary: 1
+  })
 ])
 
 new Table('CombatResolution', [
@@ -136,19 +136,19 @@ Events define what happens after rolling a specific entry. This creates the flow
 const scenario = new Scenario('Wilderness Trek')
 
 // When you encounter a Goblin Band, roll on the Combat Resolution table
-scenario.add('Encounters', 'Goblin Band', [
-  new Outcome(1, 'CombatResolution')
-])
+scenario.add('Encounters', 'Goblin Band', {
+  CombatResolution: 1
+})
 
-scenario.add('Encounters', 'Wolf Pack', [
-  new Outcome(1, 'CombatResolution')
-])
+scenario.add('Encounters', 'Wolf Pack', {
+  CombatResolution: 1
+})
 
 // When you meet a Merchant, you might trade or get a quest
-scenario.add('Encounters', 'Traveling Merchant', [
-  new Outcome(0.6, 'TradeGoods'),
-  new Outcome(0.4, 'MerchantQuest')
-])
+scenario.add('Encounters', 'Traveling Merchant', {
+  TradeGoods: 0.6,
+  MerchantQuest: 0.4
+})
 ```
 
 ### 3. Unlock Outcomes with Tag Thresholds
@@ -177,14 +177,14 @@ new Table('TriumphantVictory', [
 ])
 
 scenario.add('Encounters', 'Ancient Dragon', [
-  new Outcome(1, 'PyrrhicVictory', [
-    new Tag('danger', 10 )
-  ]),
+  new Outcome(1, 'PyrrhicVictory', {
+    danger: 10
+  }),
   
   // If treasure >= 15, they're wealthy enough to hire help - good ending
-  new Outcome(1, 'TriumphantVictory', [
-    new Tag('treasure', 15)
-  ]),
+  new Outcome(1, 'TriumphantVictory', {
+    treasure: 15
+  }),
   
   // Otherwise, standard victory
   new Outcome(0.1, 'StandardVictory'),
@@ -228,37 +228,37 @@ const scenario = new Scenario('The Dragon Heist')
 
 // Act 1: The Hook
 new Table('QuestStart', [
-  new TableEntry(1, 50, 'Tavern Rumor', 'You hear a rumor.', [
-    new Tag('info', 1)
-  ]),
-  new TableEntry(51, 100, 'Desperate Plea', 'A person is on their knees, begging for help.', [
-    new Tag('urgency', 2)
-  ])
+  new TableEntry(1, 50, 'Tavern Rumor', 'You hear a rumor.', {
+    info: 1
+  }),
+  new TableEntry(51, 100, 'Desperate Plea', 'A person is on their knees, begging for help.', {
+    urgency: 2
+  })
 ])
 
 // Act 2: Investigation or Combat approach
-scenario.add('QuestStart', 'Tavern Rumor', [
-  new Outcome(0.7, 'Investigation'),
-  new Outcome(0.3, 'DirectConfrontation')
-])
+scenario.add('QuestStart', 'Tavern Rumor', {
+  Investigation: 0.7,
+  DirectConfrontation: 0.3
+})
 
-scenario.add('QuestStart', 'Desperate Plea', [
-  new Outcome(0.9, 'DirectConfrontation'),  // Urgency drives combat
-  new Outcome(0.1, 'Investigation')
-])
+scenario.add('QuestStart', 'Desperate Plea', {
+  DirectConfrontation: 0.9,  // Urgency drives combat
+  Investigation: 0.1
+})
 
 // Investigation accumulates info
 new Table('Investigation', [
-  new TableEntry(1, 100, 'Gather Clues', 'You gathered a clue.', [
-    new Tag('info', 3)
-  ])
+  new TableEntry(1, 100, 'Gather Clues', 'You gathered a clue.', {
+    info: 3
+  })
 ])
 
 // Combat accumulates danger
 new Table('DirectConfrontation', [
-  new TableEntry(1, 100, 'Fight Guards', 'You grabbed a cop\'s gun.', [
-    new Tag('danger', 2)
-  ])
+  new TableEntry(1, 100, 'Fight Guards', 'You grabbed a cop\'s gun.', {
+    danger: 2
+  })
 ])
 
 new Table('StandardVictory', [
@@ -277,13 +277,13 @@ new Table('BrutalVictory', [
 ])
 
 // Act 3: Final confrontation - different outcomes based on your path
-scenario.add('Investigation', 'Gather Clues', [
-  new Outcome(1, 'FinalConfrontation')
-])
+scenario.add('Investigation', 'Gather Clues', {
+  FinalConfrontation: 1
+})
 
-scenario.add('DirectConfrontation', 'Fight Guards', [
-  new Outcome(1, 'FinalConfrontation')
-])
+scenario.add('DirectConfrontation', 'Fight Guards', {
+  FinalConfrontation: 1
+})
 
 new Table('FinalConfrontation', [
   new TableEntry(1, 100, 'Face the Dragon', 'You about to fight a dragon.  Good luck.')
@@ -291,14 +291,14 @@ new Table('FinalConfrontation', [
 
 scenario.add('FinalConfrontation', 'Face the Dragon', [
   // High info = you know the dragon's weakness
-  new Outcome(1, 'CleverVictory', [
-    new Tag('info', 4)
-  ]),
+  new Outcome(1, 'CleverVictory', {
+    info: 4
+  }),
   
   // High danger = injured but victorious
-  new Outcome(1, 'BrutalVictory', [
-    new Tag('danger', 4)
-  ]),
+  new Outcome(1, 'BrutalVictory', {
+    danger: 4
+  }),
   
   // Balanced approach
   new Outcome(1, 'StandardVictory')
@@ -315,21 +315,21 @@ const rng = new SimpleSeededRNG('room-moving')
 const scenario = new Scenario('The Hallways')
 
 new Table('RoomOne', [
-  new TableEntry(1, 100, 'Trapped Corridor', 'You are in a trapped corridor.', [
-    new Tag('danger', 1)
-  ])
+  new TableEntry(1, 100, 'Trapped Corridor', 'You are in a trapped corridor.', {
+    danger: 1
+  })
 ])
 
 new Table('RoomTwo', [
-  new TableEntry(1, 100, 'Guard Post', 'You approach a guard post.', [
-    new Tag('danger', 2)
-  ])
+  new TableEntry(1, 100, 'Guard Post', 'You approach a guard post.', {
+    danger: 2
+  })
 ])
 
 new Table('RoomThree', [
-  new TableEntry(1, 100, 'Armory', 'You are in the armory.', [
-    new Tag('danger', 2)
-  ])
+  new TableEntry(1, 100, 'Armory', 'You are in the armory.', {
+    danger: 2
+  })
 ])
 
 new Table('BossRoom', [
@@ -346,23 +346,23 @@ new Table('NormalBoss', [
   new TableEntry(41, 100, 'You won')
 ])
 
-scenario.add('RoomOne', 'Trapped Corridor', [
-  new Outcome(1, 'RoomTwo')
-])
+scenario.add('RoomOne', 'Trapped Corridor', {
+  RoomTwo: 1
+})
 
-scenario.add('RoomTwo', 'Guard Post', [
-  new Outcome(1, 'RoomThree')
-])
+scenario.add('RoomTwo', 'Guard Post', {
+  RoomThree: 1
+})
 
-scenario.add('RoomThree', 'Armory', [
-  new Outcome(1, 'BossRoom')
-])
+scenario.add('RoomThree', 'Armory', {
+  BossRoom: 1
+})
 
 // danger accumulates to 5, triggering hard mode boss
 scenario.add('BossRoom', 'Ancient Guardian', [
-  new Outcome(1, 'HardModeBoss', [
-    new Tag('danger', 5)
-  ]),
+  new Outcome(1, 'HardModeBoss', {
+    danger: 5
+  }),
   new Outcome(1, 'NormalBoss')
 ])
 
@@ -376,13 +376,15 @@ If you want detailed control over the flow of a scenario, you can pass an array 
 
 ```typescript
 new Table('World', [
-  new TableEntry(1, 33, 'Start', 'The start.', [
-    new Tag('danger', 1)
-  ]),
+  new TableEntry(1, 33, 'Start', 'The start.', {
+    danger: 1
+  }),
   new TableEntry(34, 66, 'Middle', 'The middle.', [(journey) => {
     if (journey.hasTag('danger', { equals: 1 })) {
       // If the condition matches, the danger tag in the journey will be added by 1
-      return [new Tag('danger', 1)]
+      return {
+        danger: 1
+      }
     } else {
       // If it fails, no tags will be modified
       return []
@@ -391,7 +393,9 @@ new Table('World', [
   new TableEntry(67, 100, 'End', 'The end.', [(journey) => {
     if (journey.hasPath({ tableName: 'World', entry: 'Middle' })) {
       // If the condition matches, the danger tag in the journey will be added by 2
-      return [new Tag('danger', 2)]
+      return {
+        danger: 2
+      }
     } else {
       // If it fails, no tags will be modified
       return []
@@ -406,17 +410,17 @@ new Table('World', [
 const rng = new SimpleSeededRNG('danger-quest')
 const scenario = new Scenario('The Hallways', rng)
 
-scenario.add('World', 'Start', [
-  new Outcome(1, 'World')
-])
+scenario.add('World', 'Start', {
+  World: 1
+})
 
 scenario.add('World', 'Middle', [
   new Outcome(1, 'World', [(journey) => {
-    const result: Tag[] = []
+    const result = {}
 
     if (journey.hasTag('danger', { greaterThan: 2 })) {
       // Add an additional tag to check for because you have to be dangerous and vicious to continue
-      result.push(new Tag('vicious', 1))
+      result['vicious'] = 1
     }
 
     return result

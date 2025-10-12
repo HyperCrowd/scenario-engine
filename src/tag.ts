@@ -1,7 +1,7 @@
 import Journey, { type JourneyTags } from './journey'
 
-export type TagModifier = (journey: Journey) => Tag[]
-
+export type TagModifier = (journey: Journey) => Tag[] | Record<string, number>
+export type ComplexTag = (TagModifier | Tag)[] | Record<string, number>
 /**
  * Represents a tag with a name and a numerical value.
  */
@@ -19,16 +19,34 @@ export default class Tag {
   }
 
   /**
+   * Syntatic sugar helper
+   */
+  static normalize (tags: ComplexTag) {
+    if (tags instanceof Array) {
+      return tags
+    } else {
+      const result: Tag[] = []
+
+      for (const [ name, value ] of Object.entries(tags)) {
+        result.push(new Tag(name, value))
+      }
+
+      return result
+    }
+  }
+
+  /**
    * 
    */
-  static unwrap(journey: Journey, tags: (TagModifier | Tag)[]) {
+  static unwrap(journey: Journey, tags: ComplexTag) {
     const result: Tag[] = []
 
-    for(const tag of tags) {
+    for(const tag of Tag.normalize(tags)) {
       if (tag instanceof Tag) {
         result.push(tag)
       } else {
-        tag(journey).forEach(tag => result.push(tag))
+        const normalized = Tag.normalize(tag(journey)) as Tag[]
+        normalized.forEach(tag => result.push(tag))
       }
     }
 

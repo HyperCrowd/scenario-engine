@@ -1,4 +1,4 @@
-import Tag, { TagModifier } from './tag'
+import Tag, { TagModifier, ComplexTag } from './tag'
 import TableEntry from './tableEntry'
 
 export type JourneyTags = Map<string, number>
@@ -128,8 +128,10 @@ export default class Journey {
   /**
    * 
    */
-  isActivated (tags: (TagModifier | Tag)[]) {
-    return tags.every((tag) => {
+  isActivated (tags: ComplexTag) {
+    const normalized = Tag.normalize(tags)
+
+    return normalized.every((tag) => {
       if (tag instanceof Tag) {
         // Dealing with a tag
         return (this.tags.get(tag.name) || 0) >= tag.value

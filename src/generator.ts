@@ -162,8 +162,7 @@ export async function generate (filePath: string) {
 
           for (const entryName of entries) {
             const outcome = [generateOutcome(likelihood, goTo, thresholds)]
-            const event = generateScenarioEvent(from, entryName, outcome)
-            scenario.add(event)
+            scenario.add(from, entryName, outcome)
           }
 
         }

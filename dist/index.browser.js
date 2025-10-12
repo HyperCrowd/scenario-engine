@@ -96,6 +96,34 @@ var ScenarioEvent = class {
   }
 };
 
+// src/outcome.ts
+var Outcome = class {
+  /**
+   * Probability between 0 and 1 for this outcome.
+   */
+  likelihood;
+  /**
+   * Name of the table to move to if this outcome is triggered.
+   */
+  tableName;
+  /**
+   * Optional array of tag thresholds required to trigger this outcome.
+   * Each threshold includes a tag name and its minimum required value.
+   */
+  tagThresholds;
+  /**
+   * Creates a new Outcome instance.
+   * @param likelihood - Probability between 0 and 1 for this outcome.
+   * @param tableName - Name of the table to move to if triggered.
+   * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
+   */
+  constructor(likelihood, tableName, tagThresholds = []) {
+    this.likelihood = likelihood;
+    this.tableName = tableName;
+    this.tagThresholds = tagThresholds;
+  }
+};
+
 // src/rng.ts
 var SimpleSeededRNG = class {
   state;
@@ -142,15 +170,30 @@ var Tag = class _Tag {
     this.value = value;
   }
   /**
+   * Syntatic sugar helper
+   */
+  static normalize(tags) {
+    if (tags instanceof Array) {
+      return tags;
+    } else {
+      const result = [];
+      for (const [name, value] of Object.entries(tags)) {
+        result.push(new _Tag(name, value));
+      }
+      return result;
+    }
+  }
+  /**
    * 
    */
   static unwrap(journey, tags) {
     const result = [];
-    for (const tag of tags) {
+    for (const tag of _Tag.normalize(tags)) {
       if (tag instanceof _Tag) {
         result.push(tag);
       } else {
-        tag(journey).forEach((tag2) => result.push(tag2));
+        const normalized = _Tag.normalize(tag(journey));
+        normalized.forEach((tag2) => result.push(tag2));
       }
     }
     return result;
@@ -276,7 +319,8 @@ var Journey = class {
    * 
    */
   isActivated(tags) {
-    return tags.every((tag) => {
+    const normalized = Tag.normalize(tags);
+    return normalized.every((tag) => {
       if (tag instanceof Tag) {
         return (this.tags.get(tag.name) || 0) >= tag.value;
       } else {
@@ -382,25 +426,25 @@ var Scenario = class {
       const journey2 = new Journey(criteria.byTags ?? /* @__PURE__ */ new Map());
       const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, journey2);
       if (possibleOutcomes.length === 0) {
-        this.echo("No possible outcomes!");
+        this.trace("No possible outcomes!");
         return;
       }
       if (journey2.hasTags() || criteria.randomly) {
-        this.echo(`Getting 1 of ${possibleOutcomes.length} random valid outcome...`);
+        this.trace(`Getting 1 of ${possibleOutcomes.length} random valid outcome...`);
         const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes);
         if (possibleOutcome) {
           outcome = possibleOutcome;
         }
       }
       if (outcome === void 0 && criteria.byTableName) {
-        this.echo("Getting outcome by table name...");
+        this.trace("Getting outcome by table name...");
         const possibleOutcome = scenarioEvent.outcomes.find((o) => o.tableName === criteria.byTableName);
         if (possibleOutcome) {
           outcome = possibleOutcome;
         }
       }
     } else if (criteria === void 0) {
-      this.echo("Getting random outcome...");
+      this.trace("Getting random outcome...");
       const possibleOutcome = this.getRandomOutcome(scenarioEvent);
       if (possibleOutcome) {
         outcome = possibleOutcome;
@@ -416,7 +460,7 @@ var Scenario = class {
   addPathEvent(tableName, journey = this.journey) {
     const table = this.getTable(tableName);
     const { roll, entry } = this.getEntry(table, journey);
-    this.echo(`Adding "${tableName}/${entry.name}" to path`);
+    this.trace(`Adding "${tableName}/${entry.name}" to path`);
     return journey.addPathEvent(roll, tableName, entry);
   }
   /**
@@ -448,17 +492,28 @@ var Scenario = class {
    * Registers an Event to the scenario.
    */
   add(tableName, entryName, outcomes) {
-    const event = new ScenarioEvent(tableName, entryName, outcomes);
-    const existingEvent = this.getEvent(event.tableName, event.entryName);
-    if (existingEvent !== void 0) {
-      this.mergeOutcomes(event, existingEvent.outcomes);
-    } else {
-      this.events.push(event);
+    try {
+      const normalizedOutcomes = outcomes instanceof Array ? outcomes : Object.entries(outcomes).map(([tableName2, likelihood]) => new Outcome(likelihood, tableName2));
+      const event = new ScenarioEvent(tableName, entryName, normalizedOutcomes);
+      const existingEvent = this.getEvent(event.tableName, event.entryName);
+      if (existingEvent !== void 0) {
+        this.mergeOutcomes(event, existingEvent.outcomes);
+      } else {
+        this.events.push(event);
+      }
+    } catch (e) {
+      console.log({ outcomes });
+      throw e;
     }
   }
-  echo(message, object = "") {
-    const objMsg = object !== "" ? JSON.stringify(object, null, 2) : "";
-    this.debug !== "" && console.log(this.debug, message, objMsg);
+  /**
+   * Tracing
+   */
+  trace(message, object = "") {
+    if (this.debug !== "") {
+      const objMsg = object !== "" ? JSON.stringify(object, null, 2) : "";
+      console.log(this.debug, message, objMsg);
+    }
   }
   /**
    * Starts running the scenario from the first registered event.
@@ -467,70 +522,42 @@ var Scenario = class {
     if (this.events.length === 0) {
       throw new Error("No events registered in the scenario.");
     }
-    this.echo(`Adding path for ${currentEvent.tableName}`);
+    this.trace(`Adding path for ${currentEvent.tableName}`);
     const pathEvent = this.addPathEvent(currentEvent.tableName, journey);
-    this.echo(`Searching for "${pathEvent.tableName}/${pathEvent.entry}" event...`);
+    this.trace(`Searching for "${pathEvent.tableName}/${pathEvent.entry}" event...`);
     const nextEvent = this.events.find(
       (e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName
     );
     if (nextEvent === void 0) {
-      this.echo("Could not find it, bailing");
+      this.trace("Could not find it, bailing");
       return journey;
     }
-    this.echo("Found it!");
-    this.echo("Searching for the next outcome with tags:", journey.tags);
+    this.trace("Found it!");
+    this.trace("Searching for the next outcome with tags:", journey.tags);
     const outcome = this.getNextOutcome(nextEvent, {
       byTags: journey.tags,
       randomly: true
     });
     if (outcome) {
-      this.echo("There is a next outcome");
+      this.trace("There is a next outcome");
       const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName);
       if (nextEvents.length > 0) {
-        this.echo(`Running ${nextEvents.length} events...`);
+        this.trace(`Running ${nextEvents.length} events...`);
         for (const nextEvent2 of nextEvents) {
-          this.echo("Running event:", nextEvent2);
+          this.trace("Running event:", nextEvent2);
           if (this.debug !== "") {
             this.debug += ".";
           }
           journey = this.run(journey, nextEvent2);
         }
       } else {
-        this.echo(`There are no more events, adding ${outcome.tableName} to path`);
+        this.trace(`There are no more events, adding ${outcome.tableName} to path`);
         this.addPathEvent(outcome.tableName, journey);
       }
     }
-    this.echo(`Returning from event`);
+    this.trace(`Returning from event`);
     this.debug = this.debug.slice(0, -1);
     return journey;
-  }
-};
-
-// src/outcome.ts
-var Outcome = class {
-  /**
-   * Probability between 0 and 1 for this outcome.
-   */
-  likelihood;
-  /**
-   * Name of the table to move to if this outcome is triggered.
-   */
-  tableName;
-  /**
-   * Optional array of tag thresholds required to trigger this outcome.
-   * Each threshold includes a tag name and its minimum required value.
-   */
-  tagThresholds;
-  /**
-   * Creates a new Outcome instance.
-   * @param likelihood - Probability between 0 and 1 for this outcome.
-   * @param tableName - Name of the table to move to if triggered.
-   * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
-   */
-  constructor(likelihood, tableName, tagThresholds = []) {
-    this.likelihood = likelihood;
-    this.tableName = tableName;
-    this.tagThresholds = tagThresholds;
   }
 };
 
@@ -552,7 +579,7 @@ var TableEntry = class {
     this.end = end;
     this.name = name;
     this.description = description;
-    this.tags = tags;
+    this.tags = Tag.normalize(tags);
   }
   /**
    * Determines whether a given value falls within this entry's range.

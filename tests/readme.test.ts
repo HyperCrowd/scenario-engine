@@ -44,43 +44,43 @@ scenarioTests('first test', () => {
   const rng = getRng(0.5, 52)
 
   new Table('QuestStart', [
-    new TableEntry(1, 60, 'Village Tavern', '', [
-      new Tag('safe', 1)
-    ]),
-    new TableEntry(61, 100, 'Dark Forest', '', [
-      new Tag('danger', 2)
-    ])
+    new TableEntry(1, 60, 'Village Tavern', '', {
+      safe: 1
+    }),
+    new TableEntry(61, 100, 'Dark Forest', '', {
+      danger: 2
+    })
   ])
 
   new Table('TavernEvents', [
-    new TableEntry(1, 50, 'Meet Friendly NPC', '', [
-      new Tag('safe', 1)
-    ]),
-    new TableEntry(51, 100, 'Overhear Quest Hook', '', [
-      new Tag('intrigue', 1)
-    ])
+    new TableEntry(1, 50, 'Meet Friendly NPC', '', {
+      safe: 1
+    }),
+    new TableEntry(51, 100, 'Overhear Quest Hook', '', {
+      intrigue: 1
+    })
   ])
 
   new Table('ForestEvents', [
-    new TableEntry(1, 70, 'Goblin Ambush', '', [
-      new Tag('danger', 2)
-    ]),
-    new TableEntry(71, 100, 'Ancient Ruins', '', [
-      new Tag('treasure', 1)
-    ])
+    new TableEntry(1, 70, 'Goblin Ambush', '', {
+      danger: 2
+    }),
+    new TableEntry(71, 100, 'Ancient Ruins', '', {
+      treasure: 1
+    })
   ])
 
   // Create the scenario with seeded RNG
   const scenario = new Scenario('Village Quest', rng)
 
   // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
-  scenario.add('QuestStart', 'Village Tavern', [
-    new Outcome(1, 'TavernEvents')
-  ])
+  scenario.add('QuestStart', 'Village Tavern', {
+    TavernEvents: 1
+  })
 
-  scenario.add('QuestStart', 'Dark Forest', [
-    new Outcome(1, 'ForestEvents')
-  ])
+  scenario.add('QuestStart', 'Dark Forest', {
+    ForestEvents: 1
+  })
 
   // Run the scenario
   const { path } = scenario.run()
@@ -393,13 +393,15 @@ scenarioTests('fourth test', () => {
 
 scenarioTests.only('fifth test', () => {
   new Table('World', [
-    new TableEntry(1, 33, 'Start', 'The start.', [
-      new Tag('danger', 1)
-    ]),
+    new TableEntry(1, 33, 'Start', 'The start.', {
+      danger: 1
+    }),
     new TableEntry(34, 66, 'Middle', 'The middle.', [(journey) => {
       if (journey.hasTag('danger', { equals: 1 })) {
         // If the condition matches, the danger tag in the journey will be added by 1
-        return [new Tag('danger', 1)]
+        return {
+          danger: 1
+        }
       } else {
         // If it fails, no tags will be modified
         return []
@@ -408,7 +410,9 @@ scenarioTests.only('fifth test', () => {
     new TableEntry(67, 100, 'End', 'The end.', [(journey) => {
       if (journey.hasPath({ tableName: 'World', entry: 'Middle' })) {
         // If the condition matches, the danger tag in the journey will be added by 2
-        return [new Tag('danger', 2)]
+        return {
+          danger: 2
+        }
       } else {
         // If it fails, no tags will be modified
         return []
@@ -425,11 +429,11 @@ scenarioTests.only('fifth test', () => {
 
   scenario.add('World', 'Middle', [
     new Outcome(1, 'World', [(journey) => {
-      const result: Tag[] = []
+      const result = {}
 
       if (journey.hasTag('danger', { greaterThan: 2 })) {
         // Add an additional tag to check for because you have to be dangerous and vicious to continue
-        result.push(new Tag('vicious', 1))
+        result['vicious'] = 1
       }
 
       return result
