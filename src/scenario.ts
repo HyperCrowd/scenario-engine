@@ -16,7 +16,10 @@ export default class Scenario {
   rng: SimpleSeededRNG
   /** Registered events in this scenario */
   events: ScenarioEvent[]
+  /** The journey taken through this scenario */
   journey: Journey
+  /** Outputs a journey */
+  debug: string = ''
 
   /**
    * Constructor
@@ -50,13 +53,6 @@ export default class Scenario {
 
     if (!entry) {
       throw new Error(`No entry found for roll ${roll} in table "${table.name}".`)
-    }
-
-    if (entry.tags && entry.tags.length > 0) {
-      const tags = Tag.unwrap(journey, entry.tags)
-      for (const tag of tags) {
-        journey.addTag(tag)
-      }
     }
 
     return {
@@ -122,39 +118,36 @@ export default class Scenario {
   /**
    * Gets the next outcome of a Scenario Event
    */
-  private getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: JourneyTags}): Outcome | undefined {
+  private getNextOutcome(scenarioEvent: ScenarioEvent, criteria?: { byTableName?: string, randomly?: boolean, byTags?: JourneyTags}, journey: Journey = this.journey): Outcome | undefined {
     let outcome: Outcome | undefined
 
     if (criteria !== undefined) {
       const journey = new Journey(criteria.byTags ?? new Map<string, number>())
       const possibleOutcomes = this.getPossibleOutcomes(scenarioEvent, journey)
 
-      if (journey.hasTags()) {
+      if (possibleOutcomes.length === 0) {
+        this.echo('No possible outcomes!')
+        return
+      }
+
+      if (journey.hasTags() || criteria.randomly) {
         /**
          * Find outcome by tags
          **/
+        this.echo(`Getting 1 of ${possibleOutcomes.length} random valid outcome...`)
+
         const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes)
 
         if (possibleOutcome) {
           outcome = possibleOutcome
         }
-      }
-      
-      if (outcome === undefined && criteria.randomly) {
-        /**
-         * Find outcome by probability
-         */
-        const possibleOutcome = this.getRandomOutcome(scenarioEvent, possibleOutcomes)
+      }     
 
-        if (possibleOutcome) {
-          outcome = possibleOutcome
-        }
-      }
-      
       if (outcome === undefined && criteria.byTableName) {
         /**
          * Find outcome by table name
          */
+        this.echo('Getting outcome by table name...')
         const possibleOutcome = scenarioEvent.outcomes.find((o) => o.tableName === criteria.byTableName)
 
         if (possibleOutcome) {
@@ -165,6 +158,7 @@ export default class Scenario {
       /**
        * Find outcome by probability
        */
+      this.echo('Getting random outcome...')
       const possibleOutcome = this.getRandomOutcome(scenarioEvent)
 
       if (possibleOutcome) {
@@ -185,6 +179,7 @@ export default class Scenario {
   private addPathEvent (tableName: string, journey: Journey = this.journey) {
     const table = this.getTable(tableName)
     const { roll, entry } = this.getEntry(table, journey)
+    this.echo(`Adding "${tableName}/${entry.name}" to path`)
     return journey.addPathEvent(roll, tableName, entry)
   }
 
@@ -198,20 +193,20 @@ export default class Scenario {
   /**
    * Merges outcomes into a Scenario Event
    */
-  mergeOutcomes (event: ScenarioEvent, outcomes: Outcome[], addIfMissing = true, journey: Journey = this.journey) {
-    for (const outcome of event.outcomes) {
-      const existingOutcome = outcomes.find(o => outcome.tableName === o.tableName && outcome.likelihood === o.likelihood)
+  mergeOutcomes (newEvent: ScenarioEvent, existingOutcomes: Outcome[], addIfMissing = true) {
+    for (const outcome of newEvent.outcomes) {
+      const existingOutcome = existingOutcomes.find(
+        o => outcome.tableName === o.tableName && outcome.likelihood === o.likelihood
+      )
 
       if (existingOutcome) {
-        // The outcome within the event already exists
-        const thresholds = Tag.unwrap(journey, outcome.tagThresholds)
-        for (const threshold of thresholds) {
-          threshold.apply(journey, existingOutcome.tagThresholds)
+        for (const threshold of outcome.tagThresholds) {
+          existingOutcome.tagThresholds.push(threshold)
         }
       } else {
         // The outcome does not exist, add it
         if (addIfMissing) {
-          outcomes.push(outcome)
+          existingOutcomes.push(outcome)
         }
       }
     }
@@ -220,7 +215,8 @@ export default class Scenario {
   /**
    * Registers an Event to the scenario.
    */
-  add(event: ScenarioEvent) {
+  add(tableName: string, entryName: string, outcomes: Outcome[]) {
+    const event = new ScenarioEvent(tableName, entryName, outcomes)
     const existingEvent = this.getEvent(event.tableName, event.entryName)
 
     if (existingEvent !== undefined) {
@@ -232,25 +228,36 @@ export default class Scenario {
     }
   }
 
+  echo (message: string, object: Object | string = '') {
+    const objMsg = object !== '' ? JSON.stringify(object, null, 2) : ''
+    this.debug !== '' && console.log(this.debug, message, objMsg)
+  }
 
   /**
    * Starts running the scenario from the first registered event.
    */
-  run(journey: Journey = this.journey, currentEvent: ScenarioEvent | undefined = this.events[0], path: PathEvent[] = []): Journey {
+  run(journey: Journey = this.journey, currentEvent: ScenarioEvent | undefined = this.events[0]): Journey {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
 
+    this.echo(`Adding path for ${currentEvent.tableName}`)
+
     const pathEvent = this.addPathEvent(currentEvent.tableName, journey)
 
-    path.push(pathEvent)
+    this.echo(`Searching for "${pathEvent.tableName}/${pathEvent.entry}" event...`)
 
-    const nextEvent: ScenarioEvent | undefined = this.events.find((e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName)
+    const nextEvent = this.events.find((e) =>
+      pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName
+    )
 
     if (nextEvent === undefined) {
-      // path.push(this.getPathEvent(currentEvent.tableName, accumulatedTags))
+      this.echo('Could not find it, bailing')
       return journey
     }
+
+    this.echo('Found it!')
+    this.echo('Searching for the next outcome with tags:', journey.tags)
 
     const outcome = this.getNextOutcome(nextEvent, {
       byTags: journey.tags,
@@ -259,22 +266,30 @@ export default class Scenario {
 
     if (outcome) {
       // There is an outcome
+      this.echo('There is a next outcome')
       const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName)
       
       if (nextEvents.length > 0) {
+        this.echo(`Running ${nextEvents.length} events...`)
         // Go through known scenario events involving this table
         for (const nextEvent of nextEvents) {
-          this.run(journey, nextEvent, path)
+          this.echo('Running event:', nextEvent)
+
+          if(this.debug !== '') {
+            this.debug += '.'
+          }
+
+          journey = this.run(journey, nextEvent)
         }
       } else {
         // We are done
-        const pathEvent = this.addPathEvent(outcome.tableName, journey)
-        path.push(pathEvent)
+        this.echo(`There are no more events, adding ${outcome.tableName} to path`)
+        this.addPathEvent(outcome.tableName, journey)
       }
-
-      
     }
 
+    this.echo(`Returning from event`)
+    this.debug = this.debug.slice(0, -1)
     return journey
   }
 }

@@ -8,7 +8,7 @@ export default class TableEntry {
   end: number
   name: string
   description: string
-  tags: TagModifier | Tag[]
+  tags: (TagModifier | Tag)[]
 
   /**
    * @param start - The starting number of the range (inclusive).
@@ -16,7 +16,7 @@ export default class TableEntry {
    * @param name - The name of the entry.
    * @param tags - Optional array of tags associated with this entry.
    */
-  constructor(start: number, end: number, name: string, description: string = name, tags: TagModifier | Tag[] = []) {
+  constructor(start: number, end: number, name: string, description: string = name, tags: (TagModifier | Tag)[] = []) {
     this.start = start
     this.end = end
     this.name = name

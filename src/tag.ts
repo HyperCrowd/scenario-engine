@@ -21,16 +21,24 @@ export default class Tag {
   /**
    * 
    */
-  static unwrap(journey: Journey, tags: TagModifier | Tag[]) {
-    return tags instanceof Array
-      ? tags
-      : tags(journey)
+  static unwrap(journey: Journey, tags: (TagModifier | Tag)[]) {
+    const result: Tag[] = []
+
+    for(const tag of tags) {
+      if (tag instanceof Tag) {
+        result.push(tag)
+      } else {
+        tag(journey).forEach(tag => result.push(tag))
+      }
+    }
+
+    return result
   }
 
   /**
    * 
    */
-  apply (journey: Journey, tags: TagModifier | Tag[]) {
+  apply (journey: Journey, tags: (TagModifier | Tag)[]) {
     const target = Tag.unwrap(journey, tags)
 
     for (const tag of target) {

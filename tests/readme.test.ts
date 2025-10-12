@@ -1,7 +1,6 @@
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import Scenario from '../src/scenario'
-import ScenarioEvent from '../src/scenarioEvent'
 import Outcome from '../src/outcome'
 import TableManager from '../src/tableManager'
 import TableEntry from '../src/tableEntry'
@@ -75,13 +74,13 @@ scenarioTests('first test', () => {
   const scenario = new Scenario('Village Quest', rng)
 
   // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
-  scenario.add(new ScenarioEvent('QuestStart', 'Village Tavern', [
+  scenario.add('QuestStart', 'Village Tavern', [
     new Outcome(1, 'TavernEvents')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('QuestStart', 'Dark Forest', [
+  scenario.add('QuestStart', 'Dark Forest', [
     new Outcome(1, 'ForestEvents')
-  ]))
+  ])
 
   // Run the scenario
   const { path } = scenario.run()
@@ -135,19 +134,19 @@ scenarioTests('second test', () => {
   const scenario = new Scenario('Wilderness Trek', getRng(0.5, 72))
 
   // When you encounter a Goblin Band, roll on the Combat Resolution table
-  scenario.add(new ScenarioEvent('Encounters', 'Goblin Band', [
+  scenario.add('Encounters', 'Goblin Band', [
     new Outcome(1, 'CombatResolution')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('Encounters', 'Wolf Pack', [
+  scenario.add('Encounters', 'Wolf Pack', [
     new Outcome(1, 'CombatResolution')
-  ]))
+  ])
 
   // When you meet a Merchant, you might trade or get a quest
-  scenario.add(new ScenarioEvent('Encounters', 'Traveling Merchant', [
+  scenario.add('Encounters', 'Traveling Merchant', [
     new Outcome(0.6, 'TradeGoods'),
     new Outcome(0.4, 'MerchantQuest')
-  ]))
+  ])
 
   new Table('Defeat', [
     new TableEntry(1, 80, 'You And The Entire Team Died'),
@@ -169,7 +168,7 @@ scenarioTests('second test', () => {
     new TableEntry(81, 100, 'The Dragon Surrendered')
   ])
 
-  scenario.add(new ScenarioEvent('Encounters', 'Ancient Dragon', [
+  scenario.add('Encounters', 'Ancient Dragon', [
     new Outcome(1, 'PyrrhicVictory', [
       new Tag('danger', 10)
     ]),
@@ -183,7 +182,7 @@ scenarioTests('second test', () => {
     new Outcome(0.1, 'StandardVictory'),
 
     new Outcome(0.9, 'Defeat')
-  ]))
+  ])
 
   const { path } = scenario.run()
 
@@ -215,15 +214,15 @@ scenarioTests('third test', () => {
   ])
 
   // Act 2: Investigation or Combat approach
-  scenario.add(new ScenarioEvent('QuestStart', 'Tavern Rumor', [
+  scenario.add('QuestStart', 'Tavern Rumor', [
     new Outcome(0.7, 'Investigation'),
     new Outcome(0.3, 'DirectConfrontation')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('QuestStart', 'Desperate Plea', [
+  scenario.add('QuestStart', 'Desperate Plea', [
     new Outcome(0.9, 'DirectConfrontation'),  // Urgency drives combat
     new Outcome(0.1, 'Investigation')
-  ]))
+  ])
 
   // Investigation accumulates info
   new Table('Investigation', [
@@ -255,19 +254,19 @@ scenarioTests('third test', () => {
   ])
 
   // Act 3: Final confrontation - different outcomes based on your path
-  scenario.add(new ScenarioEvent('Investigation', 'Gather Clues', [
+  scenario.add('Investigation', 'Gather Clues', [
     new Outcome(1, 'FinalConfrontation')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('DirectConfrontation', 'Fight Guards', [
+  scenario.add('DirectConfrontation', 'Fight Guards', [
     new Outcome(1, 'FinalConfrontation')
-  ]))
+  ])
 
   new Table('FinalConfrontation', [
     new TableEntry(1, 100, 'Face the Dragon', '', [])
   ])
 
-  scenario.add(new ScenarioEvent('FinalConfrontation', 'Face the Dragon', [
+  scenario.add('FinalConfrontation', 'Face the Dragon', [
     // High info = you know the dragon's weakness
     new Outcome(1, 'CleverVictory', [
       new Tag('info', 4)
@@ -280,7 +279,7 @@ scenarioTests('third test', () => {
     
     // Balanced approach
     new Outcome(1, 'StandardVictory')
-  ]))
+  ])
 
   const { path } = scenario.run()
   
@@ -344,25 +343,25 @@ scenarioTests('fourth test', () => {
     new TableEntry(41, 100, 'You won', '', [])
   ])
 
-  scenario.add(new ScenarioEvent('RoomOne', 'Trapped Corridor', [
+  scenario.add('RoomOne', 'Trapped Corridor', [
     new Outcome(1, 'RoomTwo')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('RoomTwo', 'Guard Post', [
+  scenario.add('RoomTwo', 'Guard Post', [
     new Outcome(1, 'RoomThree')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('RoomThree', 'Armory', [
+  scenario.add('RoomThree', 'Armory', [
     new Outcome(1, 'BossRoom')
-  ]))
+  ])
 
   // danger accumulates to 5, triggering hard mode boss
-  scenario.add(new ScenarioEvent('BossRoom', 'Ancient Guardian', [
+  scenario.add('BossRoom', 'Ancient Guardian', [
     new Outcome(1, 'HardModeBoss', [
       new Tag('danger', 5)
     ]),
     new Outcome(1, 'NormalBoss')
-  ]))
+  ])
 
   const { path } = scenario.run()
 
@@ -393,15 +392,11 @@ scenarioTests('fourth test', () => {
 })
 
 scenarioTests.only('fifth test', () => {
-  // @TODO: This needs more testing
-  const rng = new SimpleSeededRNG('danger-quest')
-  const scenario = new Scenario('The Hallways', rng)
-
   new Table('World', [
     new TableEntry(1, 33, 'Start', 'The start.', [
       new Tag('danger', 1)
     ]),
-    new TableEntry(34, 66, 'Middle', 'The middle.', (journey) => {
+    new TableEntry(34, 66, 'Middle', 'The middle.', [(journey) => {
       if (journey.hasTag('danger', { equals: 1 })) {
         // If the condition matches, the danger tag in the journey will be added by 1
         return [new Tag('danger', 1)]
@@ -409,8 +404,8 @@ scenarioTests.only('fifth test', () => {
         // If it fails, no tags will be modified
         return []
       }
-    }),
-    new TableEntry(67, 100, 'End', 'The end.', () => {
+    }]),
+    new TableEntry(67, 100, 'End', 'The end.', [(journey) => {
       if (journey.hasPath({ tableName: 'World', entry: 'Middle' })) {
         // If the condition matches, the danger tag in the journey will be added by 2
         return [new Tag('danger', 2)]
@@ -418,28 +413,99 @@ scenarioTests.only('fifth test', () => {
         // If it fails, no tags will be modified
         return []
       }
-    })
+    }])
   ])
 
-  scenario.add(new ScenarioEvent('World', 'Start', [
-    new Outcome(1, 'World')
-  ]))
+  const rng = new SimpleSeededRNG('danger-quest')
+  const scenario = new Scenario('The Hallways', rng)
 
-  scenario.add(new ScenarioEvent('World', 'Middle', [
-    new Outcome(1, 'World', (journey) => {
+  scenario.add('World', 'Start', [
+    new Outcome(1, 'World')
+  ])
+
+  scenario.add('World', 'Middle', [
+    new Outcome(1, 'World', [(journey) => {
       const result: Tag[] = []
 
       if (journey.hasTag('danger', { greaterThan: 2 })) {
+        // Add an additional tag to check for because you have to be dangerous and vicious to continue
         result.push(new Tag('vicious', 1))
       }
+
       return result
-    })
-  ]))
+    }])
+  ])
 
-  const journey = scenario.run()
+  const { path, tags } = scenario.run()
 
-  console.log(journey.tags)
-  console.log(journey.path)
+  assert.is(tags.get('danger'), 13)
+
+  assert.is(path[0].roll, 3)
+  assert.is(path[0].tableName, 'World')
+  assert.is(path[0].entry, 'Start')
+  assert.is(path[0].description, 'The start.')
+  assert.is(path[0].tags.get('danger'), 1)
+
+  assert.is(path[1].roll, 60)
+  assert.is(path[1].tableName, 'World')
+  assert.is(path[1].entry, 'Middle')
+  assert.is(path[1].description, 'The middle.')
+  assert.is(path[1].tags.get('danger'), 2)
+
+  assert.is(path[2].roll, 23)
+  assert.is(path[2].tableName, 'World')
+  assert.is(path[2].entry, 'Start')
+  assert.is(path[2].description, 'The start.')
+  assert.is(path[2].tags.get('danger'), 3)
+
+  assert.is(path[3].roll, 91)
+  assert.is(path[3].tableName, 'World')
+  assert.is(path[3].entry, 'End')
+  assert.is(path[3].description, 'The end.')
+  assert.is(path[3].tags.get('danger'), 5)
+
+  assert.is(path[4].roll, 73)
+  assert.is(path[4].tableName, 'World')
+  assert.is(path[4].entry, 'End')
+  assert.is(path[4].description, 'The end.')
+  assert.is(path[4].tags.get('danger'), 7)
+
+  assert.is(path[5].roll, 63)
+  assert.is(path[5].tableName, 'World')
+  assert.is(path[5].entry, 'Middle')
+  assert.is(path[5].description, 'The middle.')
+  assert.is(path[5].tags.get('danger'), 7)
+
+  assert.is(path[6].roll, 11)
+  assert.is(path[6].tableName, 'World')
+  assert.is(path[6].entry, 'Start')
+  assert.is(path[6].description, 'The start.')
+  assert.is(path[6].tags.get('danger'), 8)
+
+  assert.is(path[7].roll, 72)
+  assert.is(path[7].tableName, 'World')
+  assert.is(path[7].entry, 'End')
+  assert.is(path[7].description, 'The end.')
+  assert.is(path[7].tags.get('danger'), 10)
+
+  assert.is(path[8].roll, 2)
+  assert.is(path[8].tableName, 'World')
+  assert.is(path[8].entry, 'Start')
+  assert.is(path[8].description, 'The start.')
+  assert.is(path[8].tags.get('danger'), 11)
+
+  assert.is(path[9].roll, 69)
+  assert.is(path[9].tableName, 'World')
+  assert.is(path[9].entry, 'End')
+  assert.is(path[9].description, 'The end.')
+  assert.is(path[9].tags.get('danger'), 13)
+
+  assert.is(path[10].roll, 52)
+  assert.is(path[10].tableName, 'World')
+  assert.is(path[10].entry, 'Middle')
+  assert.is(path[10].description, 'The middle.')
+  assert.is(path[10].tags.get('danger'), 13)
+
 })
 
 scenarioTests.run()

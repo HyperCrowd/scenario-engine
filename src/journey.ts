@@ -96,6 +96,8 @@ export default class Journey {
    * 
    */
   addPathEvent (roll: number, tableName: string, entry: TableEntry) {
+    this.accumulate(entry.tags)
+
     const pathEvent: PathEvent = {
       roll,
       tableName,
@@ -112,18 +114,7 @@ export default class Journey {
   /**
    * 
    */
-  addTag (tag: Tag | string, value?: number) {
-    const actualTag = tag instanceof Tag
-      ? tag
-      : new Tag(tag, value as number)
-
-    this.tags.set(actualTag.name, (this.tags.get(actualTag.name) || 0) + actualTag.value)
-  }
-
-  /**
-   * 
-   */
-  accumulate (tags: TagModifier | Tag[]) {
+  accumulate (tags: (TagModifier | Tag)[]) {
     const target = Tag.unwrap(this, tags)
 
     for (const tag of target) {
@@ -137,11 +128,16 @@ export default class Journey {
   /**
    * 
    */
-  isActivated (tags: TagModifier | Tag[]) {
-    const target = Tag.unwrap(this, tags)
-
-    return target.every(({ name, value }) => {
-      return (this.tags.get(name) || 0) >= value
+  isActivated (tags: (TagModifier | Tag)[]) {
+    return tags.every((tag) => {
+      if (tag instanceof Tag) {
+        // Dealing with a tag
+        return (this.tags.get(tag.name) || 0) >= tag.value
+      } else {
+        // Dealing with a TagModifier function
+        return this.isActivated(tag(this))
+      }
+      
     })
   }
 }

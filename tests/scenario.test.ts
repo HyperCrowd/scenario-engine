@@ -1,7 +1,6 @@
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import Scenario from '../src/scenario'
-import ScenarioEvent from '../src/scenarioEvent'
 import Outcome from '../src/outcome'
 import TableManager from '../src/tableManager'
 import TableEntry from '../src/tableEntry'
@@ -63,13 +62,13 @@ scenarioTests('accumulates multiple different tags across entries', () => {
   const scenario = new Scenario('Village Quest', rng)
 
   // Chain the tables: "When you roll 'Village Tavern', go to TavernEvents"
-  scenario.add(new ScenarioEvent('QuestStart', 'Village Tavern', [
+  scenario.add('QuestStart', 'Village Tavern', [
     new Outcome(1, 'TavernEvents')
-  ]))
+  ])
 
-  scenario.add(new ScenarioEvent('QuestStart', 'Dark Forest', [
+  scenario.add('QuestStart', 'Dark Forest', [
     new Outcome(1, 'ForestEvents')
-  ]))
+  ])
 
   // Run the scenario
   const { path } = scenario.run()
@@ -105,8 +104,8 @@ scenarioTests('accumulates multiple different tags across entries', () => {
 
   new Table('Table3', [new TableEntry(1, 1, 'End', '', [])])
 
-  scenario.add(new ScenarioEvent('Table1', 'Start', [new Outcome(1, 'Table2')]))
-  scenario.add(new ScenarioEvent('Table2', 'Middle', [new Outcome(1, 'Table3')]))
+  scenario.add('Table1', 'Start', [new Outcome(1, 'Table2')])
+  scenario.add('Table2', 'Middle', [new Outcome(1, 'Table3')])
 
   const { path } = scenario.run()
 
@@ -158,7 +157,7 @@ scenarioTests('selects outcomes based on likelihood weights', () => {
 
     const scenario = new Scenario('LikelihoodTest', getRng(() => Math.random(), 0))
 
-    scenario.add(new ScenarioEvent('Start', 'Choice', outcomes))
+    scenario.add('Start', 'Choice', outcomes)
     const { path } = scenario.run()
 
     if (path.length > 1) {
@@ -184,10 +183,10 @@ scenarioTests('tag threshold takes priority over likelihood', () => {
 
   const scenario = new Scenario('ThresholdPriority', getRng(0.1, 0))
 
-  scenario.add(new ScenarioEvent('Table1', 'Start', [
+  scenario.add('Table1', 'Start', [
     new Outcome(0.9, 'WeakPath'),  // High likelihood but no threshold
     new Outcome(0.1, 'StrongPath', [new Tag('power', 10)])  // Threshold met
-  ]))
+  ])
 
   const { path } = scenario.run()
 
@@ -208,7 +207,7 @@ scenarioTests('handles long chain of events', () => {
 
   for (let i = 1; i < 10; i++) {
     scenario.add(
-      new ScenarioEvent(`Table${i}`, `Step${i}`, [new Outcome(1, `Table${i + 1}`)])
+      `Table${i}`, `Step${i}`, [new Outcome(1, `Table${i + 1}`)]
     )
   }
 
@@ -228,7 +227,7 @@ scenarioTests('terminates gracefully when no next event matches', () => {
   const scenario = new Scenario('NoMatchingEvent', getRng(0.5, 0))
 
   // Only register event for Table1, not Table2
-  scenario.add(new ScenarioEvent('Table1', 'Start', [new Outcome(1, 'Table2')]))
+  scenario.add('Table1', 'Start', [new Outcome(1, 'Table2')])
 
   const { path } = scenario.run()
 
@@ -246,7 +245,7 @@ scenarioTests('entries without tags do not modify accumulated tags', () => {
 
   const scenario = new Scenario('NoTagModification', getRng(0.5, 0))
 
-  scenario.add(new ScenarioEvent('Table1', 'Tagged', [new Outcome(1, 'Table2')]))
+  scenario.add('Table1', 'Tagged', [new Outcome(1, 'Table2')])
 
   const { path } = scenario.run()
 
@@ -272,10 +271,10 @@ scenarioTests('zero likelihood outcome is never selected', () => {
     const scenario = new Scenario('ZeroLikelihood', getRng(() => Math.random(), 0))
 
     scenario.add(
-      new ScenarioEvent('Start', 'Choice', [
+      'Start', 'Choice', [
         new Outcome(0, 'Never'),
         new Outcome(1, 'Always')
-      ])
+      ]
     )
 
     const { path } = scenario.run()
@@ -299,13 +298,13 @@ scenarioTests('complex scenario with multiple branching points', () => {
 
   const scenario = new Scenario('ComplexBranching', getRng(0.5, 0))
 
-  scenario.add(new ScenarioEvent('Start', 'Begin', [new Outcome(1, 'Choice1')]))
-  scenario.add(new ScenarioEvent('Choice1', 'FirstChoice', [new Outcome(1, 'Choice2')]))
+  scenario.add('Start', 'Begin', [new Outcome(1, 'Choice1')])
+  scenario.add('Choice1', 'FirstChoice', [new Outcome(1, 'Choice2')])
   scenario.add(
-    new ScenarioEvent('Choice2', 'SecondChoice', [
+    'Choice2', 'SecondChoice', [
       new Outcome(1, 'GoodEnding', [new Tag('score', 8)]),
       new Outcome(1, 'BadEnding')
-    ])
+    ]
   )
 
   const { path } = scenario.run()
@@ -323,10 +322,10 @@ scenarioTests('different RNG seeds produce different paths', () => {
   )
 
   const scenario1 = new Scenario('RNG1', getRng(0.3, (max: number) => Math.floor(0.3 * max)))
-  scenario1.add(new ScenarioEvent('Start', 'Low', []))
+  scenario1.add('Start', 'Low', [])
 
   const scenario2 = new Scenario('RNG2', getRng(0.8, (max: number) => Math.floor(0.8 * max)))
-  scenario2.add(new ScenarioEvent('Start', 'High', []))
+  scenario2.add('Start', 'High', [])
 
   const { path: path1 } = scenario1.run()
   const { path: path2 } = scenario2.run()
@@ -357,7 +356,7 @@ scenarioTests('outcome requires all tag thresholds to be met', () => {
     new Outcome(1, 'Failure')
   ]
 
-  scenario1.add(new ScenarioEvent('Table1', 'Quest', outcomes1))
+  scenario1.add('Table1', 'Quest', outcomes1)
   
   const { path: path1 } = scenario1.run()
   assert.is(path1[path1.length - 1].tableName, 'Success')
@@ -376,7 +375,7 @@ scenarioTests('outcome requires all tag thresholds to be met', () => {
 
   const scenario2 = new Scenario('OneMissing', getRng(0.5, 0))
 
-  scenario2.add(new ScenarioEvent('Table1', 'Quest', outcomes1))
+  scenario2.add('Table1', 'Quest', outcomes1)
   const { path: path2 } = scenario2.run()
 
   assert.is(path2[path2.length - 1].tableName, 'Failure')
