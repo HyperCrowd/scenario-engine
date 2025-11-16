@@ -35,6 +35,16 @@ var Table = class {
   getEntry(value) {
     return this.entries.find((entry) => entry.matches(value)) ?? null;
   }
+  /**
+   * Returns a string of keys for the table
+   */
+  static getKeys(tableName) {
+    const table = tableManager_default.getTable(tableName);
+    if (!table) {
+      throw new RangeError(`"${table}" is not a table`);
+    }
+    return table.entries.map((e) => e.name);
+  }
 };
 
 // src/tableManager.ts
@@ -93,67 +103,6 @@ var ScenarioEvent = class {
     this.tableName = tableName;
     this.entryName = entryName;
     this.outcomes = outcomes;
-  }
-};
-
-// src/outcome.ts
-var Outcome = class {
-  /**
-   * Probability between 0 and 1 for this outcome.
-   */
-  likelihood;
-  /**
-   * Name of the table to move to if this outcome is triggered.
-   */
-  tableName;
-  /**
-   * Optional array of tag thresholds required to trigger this outcome.
-   * Each threshold includes a tag name and its minimum required value.
-   */
-  tagThresholds;
-  /**
-   * Creates a new Outcome instance.
-   * @param likelihood - Probability between 0 and 1 for this outcome.
-   * @param tableName - Name of the table to move to if triggered.
-   * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
-   */
-  constructor(likelihood, tableName, tagThresholds = []) {
-    this.likelihood = likelihood;
-    this.tableName = tableName;
-    this.tagThresholds = tagThresholds;
-  }
-};
-
-// src/rng.ts
-var SimpleSeededRNG = class {
-  state;
-  constructor(seed) {
-    if (seed === void 0) {
-      const array = new Uint32Array(1);
-      crypto.getRandomValues(array);
-      this.state = array[0];
-    } else if (typeof seed === "string") {
-      let h = 1779033703 ^ seed.length;
-      for (let i = 0; i < seed.length; i++) {
-        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-        h = h << 13 | h >>> 19;
-      }
-      this.state = h >>> 0;
-    } else {
-      this.state = seed >>> 0;
-    }
-  }
-  /** Returns a float between 0 (inclusive) and 1 (exclusive). */
-  random() {
-    this.state += 1831565813;
-    let t = this.state;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-  /** Returns an integer between min (inclusive) and max (exclusive). */
-  randomInt(min, max) {
-    return Math.floor(this.random() * (max - min)) + min;
   }
 };
 
@@ -222,6 +171,84 @@ var Tag = class _Tag {
       }
     });
     return didUpdate;
+  }
+};
+
+// src/outcome.ts
+var Outcome = class {
+  /**
+   * Probability between 0 and 1 for this outcome.
+   */
+  likelihood;
+  /**
+   * Name of the table to move to if this outcome is triggered.
+   */
+  tableName;
+  /**
+   * Optional array of tag thresholds required to trigger this outcome.
+   * Each threshold includes a tag name and its minimum required value.
+   */
+  tagThresholds = [];
+  /**
+   * Creates a new Outcome instance.
+   * @param likelihood - Probability between 0 and 1 for this outcome.
+   * @param tableName - Name of the table to move to if triggered.
+   * @param tagThresholds - Optional array of tag thresholds to trigger this outcome.
+   */
+  constructor(likelihood, tableName, tagThresholds = []) {
+    this.likelihood = likelihood;
+    this.tableName = tableName;
+    const thresholds = [];
+    if (tagThresholds instanceof Array) {
+      for (const tag of tagThresholds) {
+        if (tag instanceof Function || tag instanceof Tag) {
+          thresholds.push(tag);
+        } else {
+          for (const [name, value] of Object.entries(tag))
+            thresholds.push(new Tag(name, value));
+        }
+      }
+    } else {
+      for (const [name, value] of Object.entries(tagThresholds)) {
+        thresholds.push(new Tag(name, value));
+      }
+    }
+    this.tagThresholds = thresholds;
+  }
+};
+
+// src/rng.ts
+var SimpleSeededRNG = class {
+  state;
+  seed;
+  constructor(seed) {
+    if (seed === void 0) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      this.state = array[0];
+    } else if (typeof seed === "string") {
+      let h = 1779033703 ^ seed.length;
+      for (let i = 0; i < seed.length; i++) {
+        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+        h = h << 13 | h >>> 19;
+      }
+      this.state = h >>> 0;
+    } else {
+      this.state = seed >>> 0;
+    }
+    this.seed = seed;
+  }
+  /** Returns a float between 0 (inclusive) and 1 (exclusive). */
+  random() {
+    this.state += 1831565813;
+    let t = this.state;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+  /** Returns an integer between min (inclusive) and max (exclusive). */
+  randomInt(min, max) {
+    return Math.floor(this.random() * (max - min)) + min;
   }
 };
 
@@ -316,7 +343,7 @@ var Journey = class {
     return target;
   }
   /**
-   * 
+   * Is the journey activated?
    */
   isActivated(tags) {
     const normalized = Tag.normalize(tags);
@@ -494,12 +521,15 @@ var Scenario = class {
   add(tableName, entryName, outcomes) {
     try {
       const normalizedOutcomes = outcomes instanceof Array ? outcomes : Object.entries(outcomes).map(([tableName2, likelihood]) => new Outcome(likelihood, tableName2));
-      const event = new ScenarioEvent(tableName, entryName, normalizedOutcomes);
-      const existingEvent = this.getEvent(event.tableName, event.entryName);
-      if (existingEvent !== void 0) {
-        this.mergeOutcomes(event, existingEvent.outcomes);
-      } else {
-        this.events.push(event);
+      const entryNames = entryName instanceof Array ? entryName : [entryName];
+      for (const name of entryNames) {
+        const event = new ScenarioEvent(tableName, name, normalizedOutcomes);
+        const existingEvent = this.getEvent(event.tableName, event.entryName);
+        if (existingEvent !== void 0) {
+          this.mergeOutcomes(event, existingEvent.outcomes);
+        } else {
+          this.events.push(event);
+        }
       }
     } catch (e) {
       console.log({ outcomes });
@@ -518,12 +548,18 @@ var Scenario = class {
   /**
    * Starts running the scenario from the first registered event.
    */
-  run(journey = this.journey, currentEvent = this.events[0]) {
+  run(journey = this.journey, currentEvent = this.events[0], skipInitialRoll = false) {
     if (this.events.length === 0) {
       throw new Error("No events registered in the scenario.");
     }
-    this.trace(`Adding path for ${currentEvent.tableName}`);
-    const pathEvent = this.addPathEvent(currentEvent.tableName, journey);
+    let pathEvent;
+    if (skipInitialRoll) {
+      this.trace(`Using existing path entry for ${currentEvent.tableName}`);
+      pathEvent = journey.path[journey.path.length - 1];
+    } else {
+      this.trace(`Adding path for ${currentEvent.tableName}`);
+      pathEvent = this.addPathEvent(currentEvent.tableName, journey);
+    }
     this.trace(`Searching for "${pathEvent.tableName}/${pathEvent.entry}" event...`);
     const nextEvent = this.events.find(
       (e) => pathEvent.tableName === e.tableName && pathEvent.entry === e.entryName
@@ -540,19 +576,18 @@ var Scenario = class {
     });
     if (outcome) {
       this.trace("There is a next outcome");
-      const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName);
-      if (nextEvents.length > 0) {
-        this.trace(`Running ${nextEvents.length} events...`);
-        for (const nextEvent2 of nextEvents) {
-          this.trace("Running event:", nextEvent2);
-          if (this.debug !== "") {
-            this.debug += ".";
-          }
-          journey = this.run(journey, nextEvent2);
+      const nextPathEvent = this.addPathEvent(outcome.tableName, journey);
+      const matchedEvent = this.events.find(
+        (e) => e.tableName === nextPathEvent.tableName && e.entryName === nextPathEvent.entry
+      );
+      if (matchedEvent) {
+        this.trace(`Running matched event: ${matchedEvent.entryName}`);
+        if (this.debug !== "") {
+          this.debug += ".";
         }
+        journey = this.run(journey, matchedEvent, true);
       } else {
-        this.trace(`There are no more events, adding ${outcome.tableName} to path`);
-        this.addPathEvent(outcome.tableName, journey);
+        this.trace(`No event defined for ${nextPathEvent.tableName}/${nextPathEvent.entry}`);
       }
     }
     this.trace(`Returning from event`);

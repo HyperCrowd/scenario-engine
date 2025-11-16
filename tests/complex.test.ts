@@ -49,7 +49,6 @@ export class MedievalCastleGenerator {
     TableManager.clearAll()
     
     this.rng = new SimpleSeededRNG(seed || `castle_${Date.now()}`)
-    console.log(this.rng.seed)
     this.scenario = new Scenario('Medieval Castle Generator', this.rng)
     this.initializeTables()
     this.initializeScenario()
