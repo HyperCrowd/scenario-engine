@@ -15,8 +15,8 @@ scenarioTests.before.each(() => {
 })
 
 class MockRNG extends SimpleSeededRNG {
-  random: () => 0.5
-  randomInt: () => 0
+  random() { return 0.5 }
+  randomInt() { return 0 }
 }
 
 /**
@@ -429,7 +429,7 @@ scenarioTests.only('fifth test', () => {
 
   scenario.add('World', 'Middle', [
     new Outcome(1, 'World', [(journey) => {
-      const result = {}
+      const result: Record<string, number> = {}
 
       if (journey.hasTag('danger', { greaterThan: 2 })) {
         // Add an additional tag to check for because you have to be dangerous and vicious to continue
