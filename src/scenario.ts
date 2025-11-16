@@ -1,4 +1,3 @@
-import Tag from './tag'
 import TableManager from './tableManager'
 import ScenarioEvent from './scenarioEvent'
 import Outcome from './outcome'
@@ -215,21 +214,27 @@ export default class Scenario {
   /**
    * Registers an Event to the scenario.
    */
-  add(tableName: string, entryName: string, outcomes: Outcome[] | Record<string, number>) {
+  add(tableName: string, entryName: string | string[], outcomes: Outcome[] | Record<string, number>) {
     try {
       const normalizedOutcomes: Outcome[] = outcomes instanceof Array
         ? outcomes
         : Object.entries(outcomes).map(([ tableName, likelihood]) => new Outcome(likelihood, tableName))
 
-      const event = new ScenarioEvent(tableName, entryName, normalizedOutcomes)
-      const existingEvent = this.getEvent(event.tableName, event.entryName)
+      const entryNames = entryName instanceof Array
+        ? entryName
+        : [entryName]
 
-      if (existingEvent !== undefined) {
-        // The event already exists
-        this.mergeOutcomes(event, existingEvent.outcomes)
-      } else {
-        // The event does not exist, add it
-        this.events.push(event)
+      for (const name of entryNames) {
+        const event = new ScenarioEvent(tableName, name, normalizedOutcomes)
+        const existingEvent = this.getEvent(event.tableName, event.entryName)
+
+        if (existingEvent !== undefined) {
+          // The event already exists
+          this.mergeOutcomes(event, existingEvent.outcomes)
+        } else {
+          // The event does not exist, add it
+          this.events.push(event)
+        }
       }
     } catch (e) {
       console.log({ outcomes })
@@ -250,14 +255,22 @@ export default class Scenario {
   /**
    * Starts running the scenario from the first registered event.
    */
-  run(journey: Journey = this.journey, currentEvent: ScenarioEvent | undefined = this.events[0]): Journey {
+  run(journey: Journey = this.journey, currentEvent: ScenarioEvent | undefined = this.events[0], skipInitialRoll: boolean = false): Journey {
     if (this.events.length === 0) {
       throw new Error('No events registered in the scenario.')
     }
 
-    this.trace(`Adding path for ${currentEvent.tableName}`)
-
-    const pathEvent = this.addPathEvent(currentEvent.tableName, journey)
+    let pathEvent: PathEvent
+    
+    if (skipInitialRoll) {
+      // We already rolled for this event in the parent call
+      this.trace(`Using existing path entry for ${currentEvent.tableName}`)
+      pathEvent = journey.path[journey.path.length - 1] // Get the last added path event
+    } else {
+      // Normal flow: roll on the current event's table
+      this.trace(`Adding path for ${currentEvent.tableName}`)
+      pathEvent = this.addPathEvent(currentEvent.tableName, journey)
+    }
 
     this.trace(`Searching for "${pathEvent.tableName}/${pathEvent.entry}" event...`)
 
@@ -279,26 +292,28 @@ export default class Scenario {
     })
 
     if (outcome) {
-      // There is an outcome
       this.trace('There is a next outcome')
-      const nextEvents = this.events.filter((e) => e.tableName === outcome.tableName)
       
-      if (nextEvents.length > 0) {
-        this.trace(`Running ${nextEvents.length} events...`)
-        // Go through known scenario events involving this table
-        for (const nextEvent of nextEvents) {
-          this.trace('Running event:', nextEvent)
+      // Roll on the outcome table ONCE
+      const nextPathEvent = this.addPathEvent(outcome.tableName, journey)
+      
+      // Find the SPECIFIC event matching this roll
+      const matchedEvent = this.events.find((e) => 
+        e.tableName === nextPathEvent.tableName && 
+        e.entryName === nextPathEvent.entry
+      )
+      
+      if (matchedEvent) {
+        this.trace(`Running matched event: ${matchedEvent.entryName}`)
 
-          if(this.debug !== '') {
-            this.debug += '.'
-          }
-
-          journey = this.run(journey, nextEvent)
+        if(this.debug !== '') {
+          this.debug += '.'
         }
+
+        // Skip the initial roll since we just did it
+        journey = this.run(journey, matchedEvent, true)
       } else {
-        // We are done
-        this.trace(`There are no more events, adding ${outcome.tableName} to path`)
-        this.addPathEvent(outcome.tableName, journey)
+        this.trace(`No event defined for ${nextPathEvent.tableName}/${nextPathEvent.entry}`)
       }
     }
 

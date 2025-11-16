@@ -126,9 +126,9 @@ export default class Journey {
   }
 
   /**
-   * 
+   * Is the journey activated?
    */
-  isActivated (tags: ComplexTag) {
+  isActivated (tags: ComplexTag): boolean {
     const normalized = Tag.normalize(tags)
 
     return normalized.every((tag) => {

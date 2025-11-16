@@ -15,8 +15,8 @@ scenarioTests.before.each(() => {
 })
 
 class MockRNG extends SimpleSeededRNG {
-  random: () => 0.5
-  randomInt: () => 0
+  random() { return 0.5 }
+  randomInt() { return 0 }
 }
 
 /**
@@ -429,7 +429,7 @@ scenarioTests.only('fifth test', () => {
 
   scenario.add('World', 'Middle', [
     new Outcome(1, 'World', [(journey) => {
-      const result = {}
+      const result: Record<string, number> = {}
 
       if (journey.hasTag('danger', { greaterThan: 2 })) {
         // Add an additional tag to check for because you have to be dangerous and vicious to continue
@@ -442,7 +442,7 @@ scenarioTests.only('fifth test', () => {
 
   const { path, tags } = scenario.run()
 
-  assert.is(tags.get('danger'), 13)
+  assert.is(tags.get('danger'), 5)
 
   assert.is(path[0].roll, 3)
   assert.is(path[0].tableName, 'World')
@@ -467,49 +467,6 @@ scenarioTests.only('fifth test', () => {
   assert.is(path[3].entry, 'End')
   assert.is(path[3].description, 'The end.')
   assert.is(path[3].tags.get('danger'), 5)
-
-  assert.is(path[4].roll, 73)
-  assert.is(path[4].tableName, 'World')
-  assert.is(path[4].entry, 'End')
-  assert.is(path[4].description, 'The end.')
-  assert.is(path[4].tags.get('danger'), 7)
-
-  assert.is(path[5].roll, 63)
-  assert.is(path[5].tableName, 'World')
-  assert.is(path[5].entry, 'Middle')
-  assert.is(path[5].description, 'The middle.')
-  assert.is(path[5].tags.get('danger'), 7)
-
-  assert.is(path[6].roll, 11)
-  assert.is(path[6].tableName, 'World')
-  assert.is(path[6].entry, 'Start')
-  assert.is(path[6].description, 'The start.')
-  assert.is(path[6].tags.get('danger'), 8)
-
-  assert.is(path[7].roll, 72)
-  assert.is(path[7].tableName, 'World')
-  assert.is(path[7].entry, 'End')
-  assert.is(path[7].description, 'The end.')
-  assert.is(path[7].tags.get('danger'), 10)
-
-  assert.is(path[8].roll, 2)
-  assert.is(path[8].tableName, 'World')
-  assert.is(path[8].entry, 'Start')
-  assert.is(path[8].description, 'The start.')
-  assert.is(path[8].tags.get('danger'), 11)
-
-  assert.is(path[9].roll, 69)
-  assert.is(path[9].tableName, 'World')
-  assert.is(path[9].entry, 'End')
-  assert.is(path[9].description, 'The end.')
-  assert.is(path[9].tags.get('danger'), 13)
-
-  assert.is(path[10].roll, 52)
-  assert.is(path[10].tableName, 'World')
-  assert.is(path[10].entry, 'Middle')
-  assert.is(path[10].description, 'The middle.')
-  assert.is(path[10].tags.get('danger'), 13)
-
 })
 
 scenarioTests.run()

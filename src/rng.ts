@@ -7,6 +7,7 @@
  */
 export default class SimpleSeededRNG {
   private state: number
+  readonly seed: string | number | undefined
 
   constructor(seed?: number | string) {
     if (seed === undefined) {
@@ -24,6 +25,7 @@ export default class SimpleSeededRNG {
     } else {
       this.state = seed >>> 0
     }
+    this.seed = seed
   }
 
   /** Returns a float between 0 (inclusive) and 1 (exclusive). */
