@@ -47,4 +47,17 @@ export default class Table {
   getEntry(value: number): TableEntry | null {
     return this.entries.find(entry => entry.matches(value)) ?? null
   }
+
+  /**
+   * Returns a string of keys for the table
+   */
+  static getKeys(tableName: string): string[] {
+    const table = TableManager.getTable(tableName)
+
+    if (!table) {
+      throw new RangeError(`"${table}" is not a table`)
+    }
+
+    return table.entries.map((e) => e.name)
+  }
 }
