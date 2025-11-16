@@ -1,6 +1,27 @@
-import { Table, TableEntry, Scenario, ScenarioEvent, Outcome, Tag, SimpleSeededRNG, TableManager } from '../src/index'
+import { suite } from 'uvu'
+import * as assert from 'uvu/assert'
+import { Table, TableEntry, Scenario, Outcome, SimpleSeededRNG, TableManager } from '../src/index'
+
+const test = suite('Generator')
 
 // Medieval Castle Generator - Proof of Concept (Generator Tone → Regional Population)
+
+// Helper to convert all Maps to arrays recursively
+const normalize = (obj: any): any => {
+  if (obj instanceof Map) {
+    return Array.from(obj.entries())
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(normalize)
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, normalize(v)])
+    )
+  }
+  return obj
+}
+
 
 export interface CastleGenerationResult {
   generatorTone: string
@@ -28,6 +49,7 @@ export class MedievalCastleGenerator {
     TableManager.clearAll()
     
     this.rng = new SimpleSeededRNG(seed || `castle_${Date.now()}`)
+    console.log(this.rng.seed)
     this.scenario = new Scenario('Medieval Castle Generator', this.rng)
     this.initializeTables()
     this.initializeScenario()
@@ -236,28 +258,12 @@ export class MedievalCastleGenerator {
 
   private initializeScenario() {
     // Start with Generator Tone
-    this.scenario.add('GeneratorTone', 'No Magic', {
+    this.scenario.add('GeneratorTone', Table.getKeys('GeneratorTone'), {
       LandOrSea: 1
     })
     
-    this.scenario.add('GeneratorTone', 'Low Fantasy', {
-      LandOrSea: 1
-    })
-    
-    this.scenario.add('GeneratorTone', 'Fantasy', {
-      LandOrSea: 1
-    })
-
     // Land or Sea -> Biome Router
-    this.scenario.add('LandOrSea', 'Inland', {
-      BiomeRouter: 1
-    })
-    
-    this.scenario.add('LandOrSea', 'Coastal', {
-      BiomeRouter: 1
-    })
-    
-    this.scenario.add('LandOrSea', 'Island', {
+    this.scenario.add('LandOrSea', Table.getKeys('LandOrSea'), {
       BiomeRouter: 1
     })
 
@@ -319,16 +325,7 @@ export class MedievalCastleGenerator {
     // Regional Population is terminal for this proof of concept
   }
 
-  public async generate(seed?: string): Promise<CastleGenerationResult> {
-    if (seed) {
-      // Clear tables and reinitialize with new seed
-      TableManager.clearAll()
-      this.rng = new SimpleSeededRNG(seed)
-      this.scenario = new Scenario('Medieval Castle Generator', this.rng)
-      this.initializeTables()
-      this.initializeScenario()
-    }
-
+  public async generate(): Promise<CastleGenerationResult> {
     const { path } = await this.scenario.run()
     
     // Extract results from path
@@ -360,3 +357,102 @@ export class MedievalCastleGenerator {
     }
   }
 }
+
+test('creates an Outcome with default tagThresholds', async () => {
+  const world = new MedievalCastleGenerator('beep1')
+  const result = await world.generate()
+  
+  assert.equal(normalize(result), {
+    generatorTone: 'Fantasy',
+    landOrSea: 'Inland',
+    biome: 'Prairie',
+    terrainRoughness: 'Hilly',
+    freshwaterSource: 'Broad river flowing past castle walls',
+    regionalPopulation: 'Wild (3-9)',
+    tags: [
+      ['magic', 1],
+      ['highmagic', 1],
+      ['mainland', 1],
+      ['dry', 1],
+      ['rough', 1],
+      ['river', 1],
+      ['pop', 2],
+      ['poor', 1]
+    ],
+    seed: 'beep1',
+    path: [
+      {
+        roll: 37,
+        tableName: 'GeneratorTone',
+        entry: 'Fantasy',
+        tags: [
+          ['magic', 1],
+          ['highmagic', 1]
+        ]
+      },
+      { roll: 55, tableName: 'LandOrSea', entry: 'Inland', tags: [
+        ['magic', 1],
+        ['highmagic', 1],
+        ['mainland', 1]
+      ] },
+      {
+        roll: 24,
+        tableName: 'BiomeRouter',
+        entry: 'Route to Land Biome',
+        tags: [
+          ['magic', 1],
+          ['highmagic', 1],
+          ['mainland', 1]
+        ]
+      },
+      { roll: 46, tableName: 'LandBiome', entry: 'Prairie', tags: [
+        ['magic', 1],
+        ['highmagic', 1],
+        ['mainland', 1],
+        ['dry', 1]
+      ] },
+      {
+        roll: 83,
+        tableName: 'TerrainRoughness',
+        entry: 'Hilly',
+        tags: [
+          ['magic', 1],
+          ['highmagic', 1],
+          ['mainland', 1],
+          ['dry', 1],
+          ['rough', 1]
+        ]
+      },
+      {
+        roll: 59,
+        tableName: 'LandSources',
+        entry: 'Broad river flowing past castle walls',
+        tags: [
+          ['magic', 1],
+          ['highmagic', 1],
+          ['mainland', 1],
+          ['dry', 1],
+          ['rough', 1],
+          ['river', 1]
+        ]
+      },
+      {
+        roll: 21,
+        tableName: 'RegionalPopulation',
+        entry: 'Wild (3-9)',
+        tags: [
+          ['magic', 1],
+          ['highmagic', 1],
+          ['mainland', 1],
+          ['dry', 1],
+          ['rough', 1],
+          ['river', 1],
+          ['pop', 2],
+          ['poor', 1]
+        ]
+      }
+    ]
+  })
+})
+
+test.run()

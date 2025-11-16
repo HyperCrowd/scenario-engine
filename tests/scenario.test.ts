@@ -15,8 +15,8 @@ scenarioTests.before.each(() => {
 })
 
 class MockRNG extends SimpleSeededRNG {
-  random: () => 0.5
-  randomInt: () => 0
+  random() { return 0.5 }
+  randomInt() { return 0 }
 }
 
 /**
@@ -89,7 +89,7 @@ scenarioTests('accumulates multiple different tags across entries', () => {
 
 
 // --- Test: Multiple tags accumulate correctly ---
-scenarioTests('accumulates multiple different tags across entries', () => {
+scenarioTests.only('accumulates multiple different tags across entries', () => {
   const scenario = new Scenario('MultiTagScenario', getRng(0.5, 0))
 
   new Table('Table1', [new TableEntry(1, 1, 'Start', '', [
